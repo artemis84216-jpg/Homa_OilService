@@ -1,0 +1,27 @@
+name: homa_oil_service
+description: مدیریت یکپارچه مراکز تعویض روغن خودرو
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  path_provider: ^2.1.1
+  device_info_plus: ^9.1.1
+  shared_preferences: ^2.2.2
+  persian_datetime_picker: ^2.6.0
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^3.5.5
+  intl: ^0.18.1
+  crypto: ^3.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
