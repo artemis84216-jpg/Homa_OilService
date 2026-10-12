@@ -25,7 +25,30 @@ jobs:
           cache: true
       
       - name: Create android folder
-        run: flutter create . --platforms android --project-name homa_oil_service
+        run: flutter create . --platforms android --project-name homa_oil_service --org com.homa
+      
+      - name: Change Application ID and App Name
+        run: |
+          # تغییر applicationId به com.homa.oil_service (مجزا از املاک)
+          sed -i 's/applicationId "com.example.homa_oil_service"/applicationId "com.homa.oil_service"/' android/app/build.gradle
+          # تغییر نام اپ
+          sed -i 's/android:label="homa_oil_service"/android:label="Homa OilService"/' android/app/src/main/AndroidManifest.xml
+      
+      - name: Create Custom Gold-Black Icon
+        run: |
+          # ساخت آیکون اختصاصی طلایی-مشکی با ImageMagick
+          for size_dir in "mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192"; do
+            dir=${size_dir%:*}
+            size=${size_dir#*:}
+            # پس‌زمینه مشکی + دایره طلایی + قطره روغن در مرکز
+            convert -size ${size}x${size} xc:'#121212' \
+              -fill '#FFD700' -draw "circle $((size/2)),$((size/2)) $((size/2)),$((size/8))" \
+              -fill '#121212' -draw "circle $((size/2)),$((size/2)) $((size/2)),$((size*3/8))" \
+              -fill '#FFD700' -draw "path 'M $((size/2)),$((size/4)) Q $((size*3/8)),$((size/2)) $((size/2)),$((size*3/4)) Q $((size*5/8)),$((size/2)) $((size/2)),$((size/4))'" \
+              android/app/src/main/res/mipmap-$dir/ic_launcher.png
+            # کپی برای ic_launcher_round
+            cp android/app/src/main/res/mipmap-$dir/ic_launcher.png android/app/src/main/res/mipmap-$dir/ic_launcher_round.png
+          done
       
       - name: Optimize Gradle Memory
         run: |
