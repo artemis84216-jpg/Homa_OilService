@@ -5,6 +5,10 @@ import 'license_helper.dart';
 import 'license_manager.dart';
 import 'license_input_screen.dart';
 import 'database_helper.dart';
+import 'employees_screen.dart';
+import 'vehicles_screen.dart';
+import 'products_screen.dart';
+import 'services_screen.dart';
 import 'app_utils.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -149,10 +153,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
             child: GridView.count(
               crossAxisCount: 2, padding: const EdgeInsets.all(16), crossAxisSpacing: 16, mainAxisSpacing: 16,
               children: [
-                _buildCard(context, Icons.people, 'کارمندان', AppTheme.gold, () => _showComingSoon('کارمندان')),
-                _buildCard(context, Icons.directions_car, 'خودروها', AppTheme.gold, () => _showComingSoon('خودروها')),
-                _buildCard(context, Icons.inventory_2, 'کالاها', AppTheme.gold, () => _showComingSoon('کالاها')),
-                _buildCard(context, Icons.build, 'خدمات', AppTheme.gold, () => _showComingSoon('خدمات')),
+                _buildCard(context, Icons.people, 'کارمندان', AppTheme.gold, () => _navigateTo(const EmployeesScreen(), 'کارمندان')),
+                _buildCard(context, Icons.directions_car, 'خودروها', AppTheme.gold, () => _navigateTo(const VehiclesScreen(), 'خودروها')),
+                _buildCard(context, Icons.inventory_2, 'کالاها', AppTheme.gold, () => _navigateTo(const ProductsScreen(), 'کالاها')),
+                _buildCard(context, Icons.build, 'خدمات', AppTheme.gold, () => _navigateTo(const ServicesScreen(), 'خدمات')),
                 _buildCard(context, Icons.receipt_long, 'فاکتورها', AppTheme.gold, () => _showComingSoon('فاکتورها')),
                 _buildCard(context, Icons.history, 'سوابق سرویس', AppTheme.gold, () => _showComingSoon('سوابق سرویس')),
                 _buildCard(context, Icons.bar_chart, 'گزارشات', AppTheme.gold, () => _showComingSoon('گزارشات')),
@@ -180,6 +184,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ]),
       ),
     );
+  }
+
+  void _navigateTo(Widget screen, String feature) {
+    if (!_isLicenseActive) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ابتدا لایسنس را فعال کنید'), backgroundColor: Colors.red));
+      return;
+    }
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
   void _showComingSoon(String feature) {
