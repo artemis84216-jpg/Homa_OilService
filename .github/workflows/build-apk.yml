@@ -1,38 +1,55 @@
-name: Build APK
+name: Build Flutter APK
+
 on:
   push:
-    branches: [ main, master ]
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java
+      - uses: actions/checkout@v4
+      
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
-
-      - name: Set up Flutter
+      
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
+          channel: 'stable'
           cache: true
+      
+      - name: Create android folder
+        run: flutter create . --platforms android --project-name homa_oil_service
+      
+      - name: Optimize Gradle Memory
+        run: |
+          echo "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8" >> android/gradle.properties
+          echo "org.gradle.parallel=true" >> android/gradle.properties
+          echo "org.gradle.daemon=false" >> android/gradle.properties
+      
+      - name: Patch Android Configurations
+        run: |
+          sed -i 's/compileSdk.*/compileSdk 34/' android/app/build.gradle
+          sed -i 's/compileSdkVersion.*/compileSdkVersion 34/' android/app/build.gradle
+          sed -i 's/org\.jetbrains\.kotlin\.android" version ".*"/org.jetbrains.kotlin.android" version "1.9.24"/' android/settings.gradle
+          sed -i "s/ext\.kotlin_version.*/ext.kotlin_version = '1.9.24'/" android/build.gradle
+          sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.CAMERA"/>\n    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>' android/app/src/main/AndroidManifest.xml
+          sed -i '/<application/i \    <queries>\n        <intent>\n            <action android:name="android.intent.action.VIEW" />\n            <data android:scheme="https" />\n        </intent>\n    </queries>' android/app/src/main/AndroidManifest.xml
 
       - name: Install dependencies
         run: flutter pub get
-
-      - name: Clean build
-        run: flutter clean
-
-      - name: Build Release APK
+      
+      - name: Build APK
         run: flutter build apk --release --no-tree-shake-icons
-
+      
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Homa_OilService_Release
+          name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
