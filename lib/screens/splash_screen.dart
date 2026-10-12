@@ -70,16 +70,17 @@ class _SplashScreenState extends State<SplashScreen> {
             children: [
               Icon(Icons.oil_barrel, size: 80, color: AppTheme.gold),
               const SizedBox(height: 16),
-              const Text(
-                'Homa_OilChange',
-                style: TextStyle(color: AppTheme.gold, fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'همـا تعویض روغنی',
-                style: TextStyle(color: AppTheme.textLight, fontSize: 18),
-              ),
+												const Text(
+												  'Homa_OilService',
+												  style: TextStyle(color: AppTheme.gold, fontSize: 28, fontWeight: FontWeight.bold),
+												),
+												const SizedBox(height: 8),
+												const Text(
+												  'همـا تعویض روغنی',
+												  style: TextStyle(color: AppTheme.textLight, fontSize: 18),
+												),
             ],
+
           ),
         ),
       ),
