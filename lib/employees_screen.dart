@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
+import 'license_manager.dart';
 import 'app_utils.dart';
 
 class EmployeesScreen extends StatefulWidget {
@@ -27,6 +28,33 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
 
   Future<void> _showEmployeeDialog({Map<String, dynamic>? emp}) async {
     final isEdit = emp != null;
+    
+    // چک محدودیت فقط هنگام افزودن
+    if (!isEdit) {
+      final check = await LicenseManager.canAddEmployee();
+      if (!check['allowed']) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => Directionality(
+              textDirection: TextDirection.rtl,
+              child: AlertDialog(
+                backgroundColor: AppTheme.cardBlack,
+                title: const Row(children: [Icon(Icons.lock, color: Colors.red, size: 28), SizedBox(width: 8), Text('محدودیت پلن', style: TextStyle(color: Colors.red))]),
+                content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(check['message'] ?? 'امکان ثبت کارمند جدید وجود ندارد', style: const TextStyle(color: AppTheme.textWhite)),
+                  const SizedBox(height: 12),
+                  const Text('برای افزایش سقف کارمندان، پلن خود را ارتقا دهید.', style: TextStyle(color: AppTheme.textGrey, fontSize: 13)),
+                ]),
+                actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('متوجه شدم', style: TextStyle(color: AppTheme.gold)))],
+              ),
+            ),
+          );
+        }
+        return;
+      }
+    }
+    
     final nameController = TextEditingController(text: emp?['name']?.toString() ?? '');
     final phoneController = TextEditingController(text: emp?['phone']?.toString() ?? '');
     final passwordController = TextEditingController(text: emp?['password']?.toString() ?? '');
