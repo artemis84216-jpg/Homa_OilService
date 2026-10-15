@@ -28,7 +28,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
   Future<void> _showServiceDialog({Map<String, dynamic>? srv}) async {
     final isEdit = srv != null;
     final nameController = TextEditingController(text: srv?['name']?.toString() ?? '');
-    final priceController = TextEditingController(text: srv?['price']?.toString() ?? '0');
+    final priceController = TextEditingController(text: (srv?['price'] ?? 0).toString());
     final descController = TextEditingController(text: srv?['description']?.toString() ?? '');
 
     await showDialog(
@@ -55,7 +55,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نام خدمت الزامی است')));
                   return;
                 }
-                final srvData = {'name': nameController.text.trim(), 'price': double.tryParse(priceController.text) ?? 0, 'description': descController.text.trim(), 'is_active': 1};
+                final srvData = {
+                  'name': nameController.text.trim(),
+                  'price': double.tryParse(toEnglishDigits(priceController.text)) ?? 0,
+                  'description': descController.text.trim(),
+                  'is_active': 1,
+                };
                 if (isEdit) {
                   await DatabaseHelper.instance.updateService(srv!['id'], srvData);
                 } else {
