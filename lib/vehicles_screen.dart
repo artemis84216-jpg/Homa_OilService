@@ -13,6 +13,7 @@ class VehiclesScreen extends StatefulWidget {
 class _VehiclesScreenState extends State<VehiclesScreen> {
   List<Map<String, dynamic>> _vehicles = [];
   List<Map<String, dynamic>> _filteredVehicles = [];
+  List<Map<String, dynamic>> _customers = [];
   bool _isLoading = true;
   final _searchController = TextEditingController();
 
@@ -20,12 +21,18 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   void initState() {
     super.initState();
     _loadVehicles();
+    _loadCustomers();
   }
 
   Future<void> _loadVehicles() async {
     setState(() => _isLoading = true);
     final data = await DatabaseHelper.instance.getAllVehicles();
     setState(() { _vehicles = data; _filteredVehicles = data; _isLoading = false; });
+  }
+
+  Future<void> _loadCustomers() async {
+    final data = await DatabaseHelper.instance.getAllCustomers();
+    setState(() => _customers = data);
   }
 
   void _filterVehicles(String query) {
@@ -38,7 +45,6 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   Future<void> _showVehicleDialog({Map<String, dynamic>? veh}) async {
     final isEdit = veh != null;
     
-    // چک محدودیت فقط هنگام افزودن
     if (!isEdit) {
       final check = await LicenseManager.canAddVehicle();
       if (!check['allowed']) {
@@ -67,51 +73,77 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final plateController = TextEditingController(text: veh?['plate_number']?.toString() ?? '');
     final brandController = TextEditingController(text: veh?['brand']?.toString() ?? '');
     final modelController = TextEditingController(text: veh?['model']?.toString() ?? '');
-    final mileageController = TextEditingController(text: veh?['current_mileage']?.toString() ?? '0');
+    final mileageController = TextEditingController(text: (veh?['current_mileage'] ?? 0).toString());
     final notesController = TextEditingController(text: veh?['notes']?.toString() ?? '');
+    Map<String, dynamic>? selectedCustomer;
+    
+    if (isEdit && veh?['customer_id'] != null) {
+      selectedCustomer = _customers.firstWhere((c) => c['id'] == veh!['customer_id'], orElse: () => {});
+    }
 
     await showDialog(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          backgroundColor: AppTheme.cardBlack,
-          title: Text(isEdit ? 'ویرایش خودرو' : 'افزودن خودرو', style: const TextStyle(color: AppTheme.gold)),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: plateController, textCapitalization: TextCapitalization.characters, style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold), decoration: const InputDecoration(labelText: 'شماره پلاک', prefixIcon: Icon(Icons.directions_car, color: AppTheme.gold))),
-              const SizedBox(height: 12),
-              Row(children: [
-                Expanded(child: TextField(controller: brandController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'برند', prefixIcon: Icon(Icons.category, color: AppTheme.gold)))),
-                const SizedBox(width: 8),
-                Expanded(child: TextField(controller: modelController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'مدل', prefixIcon: Icon(Icons.model_training, color: AppTheme.gold)))),
+        child: StatefulBuilder(
+          builder: (ctx, setStateDialog) => AlertDialog(
+            backgroundColor: AppTheme.cardBlack,
+            title: Text(isEdit ? 'ویرایش خودرو' : 'افزودن خودرو', style: const TextStyle(color: AppTheme.gold)),
+            content: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                // انتخاب مالک
+                DropdownButtonFormField<Map<String, dynamic>>(
+                  value: selectedCustomer,
+                  dropdownColor: AppTheme.cardBlack,
+                  decoration: const InputDecoration(labelText: 'مالک خودرو', prefixIcon: Icon(Icons.person, color: AppTheme.gold)),
+                  items: _customers.map((c) => DropdownMenuItem<Map<String, dynamic>>(
+                    value: c,
+                    child: Text('${c['name']} - ${c['phone']}', style: const TextStyle(color: AppTheme.textWhite)),
+                  )).toList(),
+                  onChanged: (val) => setStateDialog(() => selectedCustomer = val),
+                ),
+                const SizedBox(height: 12),
+                TextField(controller: plateController, textCapitalization: TextCapitalization.characters, style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold), decoration: const InputDecoration(labelText: 'شماره پلاک', prefixIcon: Icon(Icons.directions_car, color: AppTheme.gold))),
+                const SizedBox(height: 12),
+                Row(children: [
+                  Expanded(child: TextField(controller: brandController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'برند', prefixIcon: Icon(Icons.category, color: AppTheme.gold)))),
+                  const SizedBox(width: 8),
+                  Expanded(child: TextField(controller: modelController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'مدل', prefixIcon: Icon(Icons.model_training, color: AppTheme.gold)))),
+                ]),
+                const SizedBox(height: 12),
+                TextField(controller: mileageController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کیلومتر فعلی', prefixIcon: Icon(Icons.speed, color: AppTheme.gold))),
+                const SizedBox(height: 12),
+                TextField(controller: notesController, maxLines: 2, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'یادداشت', prefixIcon: Icon(Icons.notes, color: AppTheme.gold))),
               ]),
-              const SizedBox(height: 12),
-              TextField(controller: mileageController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کیلومتر فعلی', prefixIcon: Icon(Icons.speed, color: AppTheme.gold))),
-              const SizedBox(height: 12),
-              TextField(controller: notesController, maxLines: 2, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'یادداشت', prefixIcon: Icon(Icons.notes, color: AppTheme.gold))),
-            ]),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف', style: TextStyle(color: AppTheme.textGrey))),
-            ElevatedButton(
-              onPressed: () async {
-                if (plateController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شماره پلاک الزامی است')));
-                  return;
-                }
-                final vehData = {'plate_number': plateController.text.trim().toUpperCase(), 'brand': brandController.text.trim(), 'model': modelController.text.trim(), 'current_mileage': int.tryParse(mileageController.text) ?? 0, 'notes': notesController.text.trim()};
-                if (isEdit) {
-                  await DatabaseHelper.instance.updateVehicle(veh!['id'], vehData);
-                } else {
-                  await DatabaseHelper.instance.insertVehicle(vehData);
-                }
-                Navigator.pop(ctx);
-                _loadVehicles();
-              },
-              child: Text(isEdit ? 'ذخیره' : 'افزودن'),
             ),
-          ],
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف', style: TextStyle(color: AppTheme.textGrey))),
+              ElevatedButton(
+                onPressed: () async {
+                  if (plateController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شماره پلاک الزامی است')));
+                    return;
+                  }
+                  final vehData = {
+                    'plate_number': plateController.text.trim().toUpperCase(),
+                    'brand': brandController.text.trim(),
+                    'model': modelController.text.trim(),
+                    'customer_id': selectedCustomer?['id'],
+                    'current_mileage': int.tryParse(toEnglishDigits(mileageController.text)) ?? 0,
+                    'notes': notesController.text.trim(),
+                  };
+                  if (isEdit) {
+                    await DatabaseHelper.instance.updateVehicle(veh!['id'], vehData);
+                  } else {
+                    await DatabaseHelper.instance.insertVehicle(vehData);
+                  }
+                  Navigator.pop(ctx);
+                  _loadVehicles();
+                },
+                child: Text(isEdit ? 'ذخیره' : 'افزودن'),
+              ),
+            ],
+          ),
         ),
       ),
     );
