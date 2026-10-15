@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
+import 'license_manager.dart';
 import 'app_utils.dart';
 
 class VehiclesScreen extends StatefulWidget {
@@ -24,25 +25,45 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   Future<void> _loadVehicles() async {
     setState(() => _isLoading = true);
     final data = await DatabaseHelper.instance.getAllVehicles();
-    setState(() {
-      _vehicles = data;
-      _filteredVehicles = data;
-      _isLoading = false;
-    });
+    setState(() { _vehicles = data; _filteredVehicles = data; _isLoading = false; });
   }
 
   void _filterVehicles(String query) {
     setState(() {
-      if (query.isEmpty) {
-        _filteredVehicles = _vehicles;
-      } else {
-        _filteredVehicles = _vehicles.where((v) => (v['plate_number'] ?? '').toString().contains(query) || (v['brand'] ?? '').toString().contains(query) || (v['customer_name'] ?? '').toString().contains(query)).toList();
-      }
+      if (query.isEmpty) { _filteredVehicles = _vehicles; }
+      else { _filteredVehicles = _vehicles.where((v) => (v['plate_number'] ?? '').toString().contains(query) || (v['brand'] ?? '').toString().contains(query) || (v['customer_name'] ?? '').toString().contains(query)).toList(); }
     });
   }
 
   Future<void> _showVehicleDialog({Map<String, dynamic>? veh}) async {
     final isEdit = veh != null;
+    
+    // چک محدودیت فقط هنگام افزودن
+    if (!isEdit) {
+      final check = await LicenseManager.canAddVehicle();
+      if (!check['allowed']) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => Directionality(
+              textDirection: TextDirection.rtl,
+              child: AlertDialog(
+                backgroundColor: AppTheme.cardBlack,
+                title: const Row(children: [Icon(Icons.lock, color: Colors.red, size: 28), SizedBox(width: 8), Text('محدودیت پلن', style: TextStyle(color: Colors.red))]),
+                content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(check['message'] ?? 'امکان ثبت خودرو جدید وجود ندارد', style: const TextStyle(color: AppTheme.textWhite)),
+                  const SizedBox(height: 12),
+                  const Text('برای افزایش سقف خودروها، پلن خود را ارتقا دهید.', style: TextStyle(color: AppTheme.textGrey, fontSize: 13)),
+                ]),
+                actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('متوجه شدم', style: TextStyle(color: AppTheme.gold)))],
+              ),
+            ),
+          );
+        }
+        return;
+      }
+    }
+    
     final plateController = TextEditingController(text: veh?['plate_number']?.toString() ?? '');
     final brandController = TextEditingController(text: veh?['brand']?.toString() ?? '');
     final modelController = TextEditingController(text: veh?['model']?.toString() ?? '');
@@ -58,12 +79,12 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
           title: Text(isEdit ? 'ویرایش خودرو' : 'افزودن خودرو', style: const TextStyle(color: AppTheme.gold)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: plateController, textCapitalization: TextCapitalization.characters, style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold), decoration: const InputDecoration(labelText: 'شماره پلاک (مثال: 12ب345ایران67)', prefixIcon: Icon(Icons.directions_car, color: AppTheme.gold))),
+              TextField(controller: plateController, textCapitalization: TextCapitalization.characters, style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold), decoration: const InputDecoration(labelText: 'شماره پلاک', prefixIcon: Icon(Icons.directions_car, color: AppTheme.gold))),
               const SizedBox(height: 12),
               Row(children: [
-                Expanded(child: TextField(controller: brandController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'برند (مثال: پژو)', prefixIcon: Icon(Icons.category, color: AppTheme.gold)))),
+                Expanded(child: TextField(controller: brandController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'برند', prefixIcon: Icon(Icons.category, color: AppTheme.gold)))),
                 const SizedBox(width: 8),
-                Expanded(child: TextField(controller: modelController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'مدل (مثال: 206)', prefixIcon: Icon(Icons.model_training, color: AppTheme.gold)))),
+                Expanded(child: TextField(controller: modelController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'مدل', prefixIcon: Icon(Icons.model_training, color: AppTheme.gold)))),
               ]),
               const SizedBox(height: 12),
               TextField(controller: mileageController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کیلومتر فعلی', prefixIcon: Icon(Icons.speed, color: AppTheme.gold))),
