@@ -30,11 +30,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final nameController = TextEditingController(text: prod?['name']?.toString() ?? '');
     final brandController = TextEditingController(text: prod?['brand']?.toString() ?? '');
     final volumeController = TextEditingController(text: prod?['volume']?.toString() ?? '');
-    final costController = TextEditingController(text: prod?['cost_price']?.toString() ?? '0');
-    final sellController = TextEditingController(text: prod?['sell_price']?.toString() ?? '0');
-    final stockController = TextEditingController(text: prod?['stock_quantity']?.toString() ?? '0');
+    final costController = TextEditingController(text: (prod?['cost_price'] ?? 0).toString());
+    final sellController = TextEditingController(text: (prod?['sell_price'] ?? 0).toString());
+    final stockController = TextEditingController(text: (prod?['stock_quantity'] ?? 0).toString());
     String category = prod?['category']?.toString() ?? productCategories.first;
-    String viscosity = prod?['viscosity']?.toString() ?? oilViscosities.first;
+    String viscosity = prod?['viscosity']?.toString() ?? '';
+    String unit = prod?['unit']?.toString() ?? 'لیتر';
 
     await showDialog(
       context: context,
@@ -53,10 +54,47 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 Row(children: [
                   Expanded(child: TextField(controller: brandController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'برند', prefixIcon: Icon(Icons.business, color: AppTheme.gold)))),
                   const SizedBox(width: 8),
-                  Expanded(child: DropdownButtonFormField<String>(value: viscosity, dropdownColor: AppTheme.cardBlack, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'گرانروی', prefixIcon: Icon(Icons.water_drop, color: AppTheme.gold)), items: oilViscosities.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(), onChanged: (v) => setStateDialog(() => viscosity = v!))),
+                  Expanded(
+                    child: category.contains('روغن')
+                        ? DropdownButtonFormField<String>(
+                            value: viscosity.isEmpty ? null : viscosity,
+                            dropdownColor: AppTheme.cardBlack,
+                            style: const TextStyle(color: AppTheme.textWhite),
+                            decoration: const InputDecoration(labelText: 'گرانروی', prefixIcon: Icon(Icons.water_drop, color: AppTheme.gold)),
+                            items: oilViscosities.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+                            onChanged: (v) => setStateDialog(() => viscosity = v ?? ''),
+                          )
+                        : TextField(
+                            controller: TextEditingController(text: viscosity),
+                            style: const TextStyle(color: AppTheme.textWhite),
+                            decoration: const InputDecoration(labelText: 'گرانروی (اختیاری)', prefixIcon: Icon(Icons.water_drop, color: AppTheme.gold)),
+                            onChanged: (v) => viscosity = v,
+                          ),
+                  ),
                 ]),
                 const SizedBox(height: 12),
-                TextField(controller: volumeController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'حجم (مثال: 4 لیتر)', prefixIcon: Icon(Icons.scale, color: AppTheme.gold))),
+                Row(children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextField(controller: volumeController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'حجم/تعداد', prefixIcon: Icon(Icons.scale, color: AppTheme.gold))),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: unit,
+                      dropdownColor: AppTheme.cardBlack,
+                      style: const TextStyle(color: AppTheme.textWhite),
+                      decoration: const InputDecoration(labelText: 'واحد', prefixIcon: Icon(Icons.straighten, color: AppTheme.gold)),
+                      items: const [
+                        DropdownMenuItem(value: 'لیتر', child: Text('لیتر')),
+                        DropdownMenuItem(value: 'عدد', child: Text('عدد')),
+                        DropdownMenuItem(value: 'گالن', child: Text('گالن')),
+                        DropdownMenuItem(value: 'بسته', child: Text('بسته')),
+                      ],
+                      onChanged: (v) => setStateDialog(() => unit = v!),
+                    ),
+                  ),
+                ]),
                 const SizedBox(height: 12),
                 Row(children: [
                   Expanded(child: TextField(controller: costController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'قیمت خرید', prefixIcon: Icon(Icons.attach_money, color: AppTheme.gold)))),
@@ -75,7 +113,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نام کالا الزامی است')));
                     return;
                   }
-                  final prodData = {'name': nameController.text.trim(), 'category': category, 'brand': brandController.text.trim(), 'viscosity': viscosity, 'volume': volumeController.text.trim(), 'cost_price': double.tryParse(costController.text) ?? 0, 'sell_price': double.tryParse(sellController.text) ?? 0, 'stock_quantity': int.tryParse(stockController.text) ?? 0};
+                  final prodData = {
+                    'name': nameController.text.trim(),
+                    'category': category,
+                    'brand': brandController.text.trim(),
+                    'viscosity': viscosity,
+                    'volume': '${volumeController.text.trim()} $unit',
+                    'cost_price': double.tryParse(toEnglishDigits(costController.text)) ?? 0,
+                    'sell_price': double.tryParse(toEnglishDigits(sellController.text)) ?? 0,
+                    'stock_quantity': int.tryParse(toEnglishDigits(stockController.text)) ?? 0,
+                  };
                   if (isEdit) {
                     await DatabaseHelper.instance.updateProduct(prod!['id'], prodData);
                   } else {
