@@ -9,6 +9,10 @@ import 'employees_screen.dart';
 import 'vehicles_screen.dart';
 import 'products_screen.dart';
 import 'services_screen.dart';
+import 'invoices_screen.dart';
+import 'service_history_screen.dart';
+import 'reports_screen.dart';
+import 'about_screen.dart';
 import 'app_utils.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -94,6 +98,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
     ]);
   }
 
+  void _navigateTo(Widget screen, String feature) {
+    if (!_isLicenseActive) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ابتدا لایسنس را فعال کنید'), backgroundColor: Colors.red));
+      return;
+    }
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -157,10 +169,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 _buildCard(context, Icons.directions_car, 'خودروها', AppTheme.gold, () => _navigateTo(const VehiclesScreen(), 'خودروها')),
                 _buildCard(context, Icons.inventory_2, 'کالاها', AppTheme.gold, () => _navigateTo(const ProductsScreen(), 'کالاها')),
                 _buildCard(context, Icons.build, 'خدمات', AppTheme.gold, () => _navigateTo(const ServicesScreen(), 'خدمات')),
-                _buildCard(context, Icons.receipt_long, 'فاکتورها', AppTheme.gold, () => _showComingSoon('فاکتورها')),
-                _buildCard(context, Icons.history, 'سوابق سرویس', AppTheme.gold, () => _showComingSoon('سوابق سرویس')),
-                _buildCard(context, Icons.bar_chart, 'گزارشات', AppTheme.gold, () => _showComingSoon('گزارشات')),
-                _buildCard(context, Icons.info, 'درباره ما', AppTheme.gold, () => _showComingSoon('درباره ما')),
+                _buildCard(context, Icons.receipt_long, 'فاکتورها', AppTheme.gold, () => _navigateTo(const InvoicesScreen(), 'فاکتورها')),
+                _buildCard(context, Icons.history, 'سوابق سرویس', AppTheme.gold, () => _navigateTo(const ServiceHistoryScreen(), 'سوابق سرویس')),
+                _buildCard(context, Icons.bar_chart, 'گزارشات', AppTheme.gold, () => _navigateTo(const ReportsScreen(), 'گزارشات')),
+                _buildCard(context, Icons.info, 'درباره ما', AppTheme.gold, () => _navigateTo(const AboutScreen(), 'درباره ما')),
               ],
             ),
           ),
@@ -184,17 +196,5 @@ class _AdminDashboardState extends State<AdminDashboard> {
         ]),
       ),
     );
-  }
-
-  void _navigateTo(Widget screen, String feature) {
-    if (!_isLicenseActive) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ابتدا لایسنس را فعال کنید'), backgroundColor: Colors.red));
-      return;
-    }
-    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
-  }
-
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('بخش $feature در فاز بعدی فعال می‌شود'), backgroundColor: AppTheme.gold));
   }
 }
