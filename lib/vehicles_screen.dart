@@ -20,19 +20,19 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   @override
   void initState() {
     super.initState();
-    _loadVehicles();
-    _loadCustomers();
+    _loadData();
   }
 
-  Future<void> _loadVehicles() async {
+  Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    final data = await DatabaseHelper.instance.getAllVehicles();
-    setState(() { _vehicles = data; _filteredVehicles = data; _isLoading = false; });
-  }
-
-  Future<void> _loadCustomers() async {
-    final data = await DatabaseHelper.instance.getAllCustomers();
-    setState(() => _customers = data);
+    final vehicles = await DatabaseHelper.instance.getAllVehicles();
+    final customers = await DatabaseHelper.instance.getAllCustomers();
+    setState(() {
+      _vehicles = vehicles;
+      _filteredVehicles = vehicles;
+      _customers = customers;
+      _isLoading = false;
+    });
   }
 
   void _filterVehicles(String query) {
@@ -40,6 +40,62 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       if (query.isEmpty) { _filteredVehicles = _vehicles; }
       else { _filteredVehicles = _vehicles.where((v) => (v['plate_number'] ?? '').toString().contains(query) || (v['brand'] ?? '').toString().contains(query) || (v['customer_name'] ?? '').toString().contains(query)).toList(); }
     });
+  }
+
+  // دیالوگ افزودن مشتری سریع
+  Future<Map<String, dynamic>?> _showQuickAddCustomerDialog() async {
+    final nameController = TextEditingController();
+    final phoneController = TextEditingController();
+    final nationalIdController = TextEditingController();
+    final addressController = TextEditingController();
+    final notesController = TextEditingController();
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: AppTheme.cardBlack,
+          title: const Text('افزودن مشتری جدید', style: TextStyle(color: AppTheme.gold)),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: nameController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'نام و نام خانوادگی *', prefixIcon: Icon(Icons.person, color: AppTheme.gold))),
+              const SizedBox(height: 12),
+              TextField(controller: phoneController, keyboardType: TextInputType.phone, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'شماره تماس *', prefixIcon: Icon(Icons.phone, color: AppTheme.gold))),
+              const SizedBox(height: 12),
+              TextField(controller: nationalIdController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کد ملی', prefixIcon: Icon(Icons.badge, color: AppTheme.gold))),
+              const SizedBox(height: 12),
+              TextField(controller: addressController, maxLines: 2, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'آدرس', prefixIcon: Icon(Icons.location_on, color: AppTheme.gold))),
+              const SizedBox(height: 12),
+              TextField(controller: notesController, maxLines: 2, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'یادداشت', prefixIcon: Icon(Icons.notes, color: AppTheme.gold))),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('انصراف', style: TextStyle(color: AppTheme.textGrey))),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.isEmpty || phoneController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نام و شماره تماس الزامی است'), backgroundColor: Colors.red));
+                  return;
+                }
+                final customerData = {
+                  'name': nameController.text.trim(),
+                  'phone': phoneController.text.trim(),
+                  'national_id': nationalIdController.text.trim(),
+                  'address': addressController.text.trim(),
+                  'notes': notesController.text.trim(),
+                };
+                final id = await DatabaseHelper.instance.insertCustomer(customerData);
+                final newCustomer = {'id': id, ...customerData};
+                Navigator.pop(ctx, newCustomer);
+              },
+              child: const Text('افزودن'),
+            ),
+          ],
+        ),
+      ),
+    );
+    return result;
   }
 
   Future<void> _showVehicleDialog({Map<String, dynamic>? veh}) async {
@@ -77,8 +133,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final notesController = TextEditingController(text: veh?['notes']?.toString() ?? '');
     Map<String, dynamic>? selectedCustomer;
     
-    if (isEdit && veh?['customer_id'] != null) {
-      selectedCustomer = _customers.firstWhere((c) => c['id'] == veh!['customer_id'], orElse: () => {});
+    if (veh?['customer_id'] != null) {
+      final match = _customers.where((c) => c['id'] == veh!['customer_id']).toList();
+      if (match.isNotEmpty) selectedCustomer = match.first;
     }
 
     await showDialog(
@@ -91,19 +148,59 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             title: Text(isEdit ? 'ویرایش خودرو' : 'افزودن خودرو', style: const TextStyle(color: AppTheme.gold)),
             content: SingleChildScrollView(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                // انتخاب مالک
-                DropdownButtonFormField<Map<String, dynamic>>(
-                  value: selectedCustomer,
-                  dropdownColor: AppTheme.cardBlack,
-                  decoration: const InputDecoration(labelText: 'مالک خودرو', prefixIcon: Icon(Icons.person, color: AppTheme.gold)),
-                  items: _customers.map((c) => DropdownMenuItem<Map<String, dynamic>>(
-                    value: c,
-                    child: Text('${c['name']} - ${c['phone']}', style: const TextStyle(color: AppTheme.textWhite)),
-                  )).toList(),
-                  onChanged: (val) => setStateDialog(() => selectedCustomer = val),
+                // انتخاب مالک با دکمه افزودن سریع
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text('مالک خودرو:', style: TextStyle(color: AppTheme.textGrey, fontSize: 13)),
+                    ),
+                    TextButton.icon(
+                      onPressed: () async {
+                        final newCustomer = await _showQuickAddCustomerDialog();
+                        if (newCustomer != null) {
+                          setStateDialog(() {
+                            _customers.add(newCustomer);
+                            selectedCustomer = newCustomer;
+                          });
+                          setState(() => _customers.add(newCustomer));
+                        }
+                      },
+                      icon: const Icon(Icons.person_add, color: AppTheme.gold, size: 18),
+                      label: const Text('مشتری جدید', style: TextStyle(color: AppTheme.gold, fontSize: 12)),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 4),
+                if (_customers.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.orange, size: 18),
+                        SizedBox(width: 8),
+                        Expanded(child: Text('هنوز مشتری‌ای ثبت نشده. روی "مشتری جدید" کلیک کنید.', style: TextStyle(color: Colors.orange, fontSize: 12))),
+                      ],
+                    ),
+                  )
+                else
+                  DropdownButtonFormField<Map<String, dynamic>>(
+                    value: selectedCustomer,
+                    dropdownColor: AppTheme.cardBlack,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'انتخاب مالک', prefixIcon: Icon(Icons.person, color: AppTheme.gold)),
+                    items: _customers.map((c) => DropdownMenuItem<Map<String, dynamic>>(
+                      value: c,
+                      child: Text('${c['name']} - ${c['phone']}', style: const TextStyle(color: AppTheme.textWhite), overflow: TextOverflow.ellipsis),
+                    )).toList(),
+                    onChanged: (val) => setStateDialog(() => selectedCustomer = val),
+                  ),
                 const SizedBox(height: 12),
-                TextField(controller: plateController, textCapitalization: TextCapitalization.characters, style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold), decoration: const InputDecoration(labelText: 'شماره پلاک', prefixIcon: Icon(Icons.directions_car, color: AppTheme.gold))),
+                TextField(controller: plateController, textCapitalization: TextCapitalization.characters, style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold), decoration: const InputDecoration(labelText: 'شماره پلاک *', prefixIcon: Icon(Icons.directions_car, color: AppTheme.gold))),
                 const SizedBox(height: 12),
                 Row(children: [
                   Expanded(child: TextField(controller: brandController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'برند', prefixIcon: Icon(Icons.category, color: AppTheme.gold)))),
@@ -121,7 +218,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               ElevatedButton(
                 onPressed: () async {
                   if (plateController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شماره پلاک الزامی است')));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شماره پلاک الزامی است'), backgroundColor: Colors.red));
                     return;
                   }
                   final vehData = {
@@ -138,7 +235,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                     await DatabaseHelper.instance.insertVehicle(vehData);
                   }
                   Navigator.pop(ctx);
-                  _loadVehicles();
+                  _loadData();
                 },
                 child: Text(isEdit ? 'ذخیره' : 'افزودن'),
               ),
@@ -153,7 +250,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final confirm = await showDialog<bool>(context: context, builder: (ctx) => Directionality(textDirection: TextDirection.rtl, child: AlertDialog(backgroundColor: AppTheme.cardBlack, title: const Text('تایید حذف', style: TextStyle(color: AppTheme.gold)), content: const Text('آیا مطمئن هستید؟', style: TextStyle(color: AppTheme.textWhite)), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('انصراف')), TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف', style: TextStyle(color: Colors.red)))])));
     if (confirm == true) {
       await DatabaseHelper.instance.deleteVehicle(id);
-      _loadVehicles();
+      _loadData();
     }
   }
 
@@ -161,7 +258,13 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundBlack,
-      appBar: AppBar(title: const Text('مدیریت خودروها'), centerTitle: true),
+      appBar: AppBar(title: const Text('مدیریت خودروها'), centerTitle: true, actions: [
+        IconButton(icon: const Icon(Icons.refresh, color: AppTheme.gold), onPressed: _loadData),
+        IconButton(icon: const Icon(Icons.people, color: AppTheme.gold), onPressed: () async {
+          await _showQuickAddCustomerDialog();
+          _loadData();
+        }, tooltip: 'افزودن مشتری'),
+      ]),
       body: Column(
         children: [
           Padding(
