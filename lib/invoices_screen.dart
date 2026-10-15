@@ -64,7 +64,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                 Row(children: [
                   const Icon(Icons.directions_car, size: 16, color: AppTheme.oilBlue),
                   const SizedBox(width: 4),
-                  Text('${inv['plate_number'] ?? 'نامشخص'} | ${inv['brand'] ?? ''} ${inv['model'] ?? ''}', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold)),
+                  Expanded(child: Text('${inv['plate_number'] ?? 'نامشخص'} | ${inv['brand'] ?? ''} ${inv['model'] ?? ''}', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold))),
                 ]),
                 const SizedBox(height: 6),
                 Row(children: [
@@ -117,7 +117,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   final _discountController = TextEditingController(text: '0');
   final _notesController = TextEditingController();
   
-  List<Map<String, dynamic>> _invoiceItems = []; // {type: 'product'|'service', id, name, price, quantity}
+  List<Map<String, dynamic>> _invoiceItems = [];
   
   bool _isLoading = true;
   bool _isSaving = false;
@@ -194,8 +194,10 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   }
 
   String _generateInvoiceNumber() {
-    final now = DateTime.now();
-    return 'INV-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.millisecondsSinceEpoch.toString().substring(6)}';
+    final now = Jalali.now();
+    final dateStr = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+    final timeStr = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+    return 'HOMA-$dateStr-$timeStr';
   }
 
   Future<void> _saveInvoice() async {
@@ -218,7 +220,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       final invoiceNumber = _generateInvoiceNumber();
       final dateStr = '${_invoiceDate.year}/${_invoiceDate.month.toString().padLeft(2, '0')}/${_invoiceDate.day.toString().padLeft(2, '0')}';
       
-      // ثبت فاکتور
       await DatabaseHelper.instance.insertInvoice({
         'invoice_number': invoiceNumber,
         'vehicle_id': _selectedVehicle!['id'],
@@ -235,7 +236,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
         'notes': _notesController.text.trim(),
       });
 
-      // کاهش موجودی کالاها
       for (final item in _invoiceItems) {
         if (item['type'] == 'product') {
           final product = _products.firstWhere((p) => p['id'] == item['id']);
@@ -244,7 +244,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
         }
       }
 
-      // به‌روزرسانی کیلومتر خودرو
       final mileage = int.tryParse(toEnglishDigits(_mileageController.text)) ?? 0;
       if (mileage > 0) {
         await DatabaseHelper.instance.updateVehicle(_selectedVehicle!['id'], {
@@ -277,7 +276,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            // انتخاب خودرو
             const Text('۱. خودرو', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
             const SizedBox(height: 8),
             DropdownButtonFormField<Map<String, dynamic>>(
@@ -286,13 +284,25 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
               decoration: const InputDecoration(labelText: 'انتخاب خودرو', prefixIcon: Icon(Icons.directions_car, color: AppTheme.gold)),
               items: _vehicles.map((v) => DropdownMenuItem<Map<String, dynamic>>(
                 value: v,
-                child: Text('${v['plate_number']} - ${v['brand'] ?? ''} ${v['model'] ?? ''}', style: const TextStyle(color: AppTheme.textWhite)),
+                child: Text('${v['plate_number']} - ${v['brand'] ?? ''} ${v['model'] ?? ''} (${v['customer_name'] ?? 'بدون مالک'})', style: const TextStyle(color: AppTheme.textWhite)),
               )).toList(),
               onChanged: (val) => setState(() => _selectedVehicle = val),
             ),
+            if (_selectedVehicle != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: AppTheme.cardBlack, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.gold, width: 0.5)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('پلاک: ${_selectedVehicle!['plate_number']}', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text('مالک: ${_selectedVehicle!['customer_name'] ?? 'ثبت نشده'}', style: const TextStyle(color: AppTheme.textGrey)),
+                  Text('کیلومتر فعلی: ${formatNumber(_selectedVehicle!['current_mileage'] ?? 0)}', style: const TextStyle(color: AppTheme.textGrey)),
+                ]),
+              ),
+            ],
             const SizedBox(height: 16),
             
-            // کیلومتر
             TextField(
               controller: _mileageController,
               keyboardType: TextInputType.number,
@@ -301,7 +311,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
             ),
             const SizedBox(height: 16),
             
-            // انتخاب تکنسین
             const Text('۲. تکنسین', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
             const SizedBox(height: 8),
             DropdownButtonFormField<Map<String, dynamic>>(
@@ -316,7 +325,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
             ),
             const SizedBox(height: 16),
             
-            // تاریخ
             OutlinedButton.icon(
               onPressed: () async {
                 final picked = await showPersianDatePicker(context: context, initialDate: _invoiceDate, firstDate: Jalali(1400), lastDate: Jalali(1450));
@@ -328,7 +336,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
             ),
             const SizedBox(height: 24),
             
-            // افزودن کالا
             const Text('۳. کالاها', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
             const SizedBox(height: 8),
             Wrap(
@@ -345,7 +352,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
             ),
             const SizedBox(height: 16),
             
-            // افزودن خدمت
             const Text('۴. خدمات', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
             const SizedBox(height: 8),
             Wrap(
@@ -362,7 +368,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
             ),
             const SizedBox(height: 24),
             
-            // لیست آیتم‌های فاکتور
             if (_invoiceItems.isNotEmpty) ...[
               const Text('۵. آیتم‌های فاکتور', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
               const SizedBox(height: 8),
@@ -391,7 +396,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
               }),
               const SizedBox(height: 16),
               
-              // تخفیف
               TextField(
                 controller: _discountController,
                 keyboardType: TextInputType.number,
@@ -400,7 +404,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
               ),
               const SizedBox(height: 16),
               
-              // یادداشت
               TextField(
                 controller: _notesController,
                 maxLines: 2,
@@ -409,7 +412,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
               ),
               const SizedBox(height: 16),
               
-              // جمع کل
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: AppTheme.cardBlack, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.gold, width: 2)),
@@ -423,7 +425,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
               ),
               const SizedBox(height: 24),
               
-              // دکمه ثبت
               SizedBox(
                 height: 55,
                 child: ElevatedButton.icon(
