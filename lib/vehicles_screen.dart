@@ -92,11 +92,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       ),
     );
     
-    // به‌روزرسانی state اصلی screen
+    // به‌روزرسانی state اصلی screen (بدون return)
     if (result != null) {
       setState(() => _customers.add(result));
     }
-    return result;
   }
 
   Future<void> _showVehicleDialog({Map<String, dynamic>? veh}) async {
