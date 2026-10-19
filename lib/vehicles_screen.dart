@@ -42,13 +42,12 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     });
   }
 
-  // دیالوگ افزودن مشتری سریع
-  Future<Map<String, dynamic>?> _showQuickAddCustomerDialog() async {
+  // افزودن مشتری سریع و به‌روزرسانی state اصلی
+  Future<void> _addQuickCustomer() async {
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
     final nationalIdController = TextEditingController();
     final addressController = TextEditingController();
-    final notesController = TextEditingController();
 
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -66,8 +65,6 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               TextField(controller: nationalIdController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کد ملی', prefixIcon: Icon(Icons.badge, color: AppTheme.gold))),
               const SizedBox(height: 12),
               TextField(controller: addressController, maxLines: 2, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'آدرس', prefixIcon: Icon(Icons.location_on, color: AppTheme.gold))),
-              const SizedBox(height: 12),
-              TextField(controller: notesController, maxLines: 2, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'یادداشت', prefixIcon: Icon(Icons.notes, color: AppTheme.gold))),
             ]),
           ),
           actions: [
@@ -83,7 +80,6 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   'phone': phoneController.text.trim(),
                   'national_id': nationalIdController.text.trim(),
                   'address': addressController.text.trim(),
-                  'notes': notesController.text.trim(),
                 };
                 final id = await DatabaseHelper.instance.insertCustomer(customerData);
                 final newCustomer = {'id': id, ...customerData};
@@ -95,6 +91,11 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         ),
       ),
     );
+    
+    // به‌روزرسانی state اصلی screen
+    if (result != null) {
+      setState(() => _customers.add(result));
+    }
     return result;
   }
 
@@ -148,22 +149,14 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             title: Text(isEdit ? 'ویرایش خودرو' : 'افزودن خودرو', style: const TextStyle(color: AppTheme.gold)),
             content: SingleChildScrollView(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                // انتخاب مالک با دکمه افزودن سریع
                 Row(
                   children: [
-                    const Expanded(
-                      child: Text('مالک خودرو:', style: TextStyle(color: AppTheme.textGrey, fontSize: 13)),
-                    ),
+                    const Expanded(child: Text('مالک خودرو:', style: TextStyle(color: AppTheme.textGrey, fontSize: 13))),
                     TextButton.icon(
                       onPressed: () async {
-                        final newCustomer = await _showQuickAddCustomerDialog();
-                        if (newCustomer != null) {
-                          setStateDialog(() {
-                            _customers.add(newCustomer);
-                            selectedCustomer = newCustomer;
-                          });
-                          setState(() => _customers.add(newCustomer));
-                        }
+                        await _addQuickCustomer();
+                        // به‌روزرسانی state دیالوگ
+                        setStateDialog(() {});
                       },
                       icon: const Icon(Icons.person_add, color: AppTheme.gold, size: 18),
                       label: const Text('مشتری جدید', style: TextStyle(color: AppTheme.gold, fontSize: 12)),
@@ -261,8 +254,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       appBar: AppBar(title: const Text('مدیریت خودروها'), centerTitle: true, actions: [
         IconButton(icon: const Icon(Icons.refresh, color: AppTheme.gold), onPressed: _loadData),
         IconButton(icon: const Icon(Icons.people, color: AppTheme.gold), onPressed: () async {
-          await _showQuickAddCustomerDialog();
-          _loadData();
+          await _addQuickCustomer();
         }, tooltip: 'افزودن مشتری'),
       ]),
       body: Column(
