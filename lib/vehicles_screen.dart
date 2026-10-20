@@ -5,7 +5,6 @@ import 'app_utils.dart';
 
 class VehiclesScreen extends StatefulWidget {
   const VehiclesScreen({super.key});
-
   @override
   State<VehiclesScreen> createState() => _VehiclesScreenState();
 }
@@ -18,21 +17,13 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   final _searchController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
+  void initState() { super.initState(); _loadData(); }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     final vehicles = await DatabaseHelper.instance.getAllVehicles();
     final customers = await DatabaseHelper.instance.getAllCustomers();
-    setState(() {
-      _vehicles = vehicles;
-      _filteredVehicles = vehicles;
-      _customers = customers;
-      _isLoading = false;
-    });
+    setState(() { _vehicles = vehicles; _filteredVehicles = vehicles; _customers = customers; _isLoading = false; });
   }
 
   void _filterVehicles(String query) {
@@ -42,8 +33,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     });
   }
 
-  // افزودن مشتری سریع و به‌روزرسانی state اصلی
-  Future<void> _addQuickCustomer() async {
+  Future<void> _addQuickCustomer(Function(Map<String, dynamic>) onAdded) async {
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
     final nationalIdController = TextEditingController();
@@ -75,15 +65,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نام و شماره تماس الزامی است'), backgroundColor: Colors.red));
                   return;
                 }
-                final customerData = {
-                  'name': nameController.text.trim(),
-                  'phone': phoneController.text.trim(),
-                  'national_id': nationalIdController.text.trim(),
-                  'address': addressController.text.trim(),
-                };
+                final customerData = {'name': nameController.text.trim(), 'phone': phoneController.text.trim(), 'national_id': nationalIdController.text.trim(), 'address': addressController.text.trim()};
                 final id = await DatabaseHelper.instance.insertCustomer(customerData);
-                final newCustomer = {'id': id, ...customerData};
-                Navigator.pop(ctx, newCustomer);
+                Navigator.pop(ctx, {'id': id, ...customerData});
               },
               child: const Text('افزودن'),
             ),
@@ -91,37 +75,18 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         ),
       ),
     );
-    
-    // به‌روزرسانی state اصلی screen (بدون return)
     if (result != null) {
       setState(() => _customers.add(result));
+      onAdded(result); // فراخوانی کال‌بک برای به‌روزرسانی دیالوگ والد
     }
   }
 
   Future<void> _showVehicleDialog({Map<String, dynamic>? veh}) async {
     final isEdit = veh != null;
-    
     if (!isEdit) {
       final check = await LicenseManager.canAddVehicle();
       if (!check['allowed']) {
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (ctx) => Directionality(
-              textDirection: TextDirection.rtl,
-              child: AlertDialog(
-                backgroundColor: AppTheme.cardBlack,
-                title: const Row(children: [Icon(Icons.lock, color: Colors.red, size: 28), SizedBox(width: 8), Text('محدودیت پلن', style: TextStyle(color: Colors.red))]),
-                content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(check['message'] ?? 'امکان ثبت خودرو جدید وجود ندارد', style: const TextStyle(color: AppTheme.textWhite)),
-                  const SizedBox(height: 12),
-                  const Text('برای افزایش سقف خودروها، پلن خود را ارتقا دهید.', style: TextStyle(color: AppTheme.textGrey, fontSize: 13)),
-                ]),
-                actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('متوجه شدم', style: TextStyle(color: AppTheme.gold)))],
-              ),
-            ),
-          );
-        }
+        if (mounted) showDialog(context: context, builder: (ctx) => Directionality(textDirection: TextDirection.rtl, child: AlertDialog(backgroundColor: AppTheme.cardBlack, title: const Row(children: [Icon(Icons.lock, color: Colors.red, size: 28), SizedBox(width: 8), Text('محدودیت پلن', style: TextStyle(color: Colors.red))]), content: Text(check['message'] ?? '', style: const TextStyle(color: AppTheme.textWhite)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('متوجه شدم', style: TextStyle(color: AppTheme.gold)))])));
         return;
       }
     }
@@ -132,7 +97,6 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final mileageController = TextEditingController(text: (veh?['current_mileage'] ?? 0).toString());
     final notesController = TextEditingController(text: veh?['notes']?.toString() ?? '');
     Map<String, dynamic>? selectedCustomer;
-    
     if (veh?['customer_id'] != null) {
       final match = _customers.where((c) => c['id'] == veh!['customer_id']).toList();
       if (match.isNotEmpty) selectedCustomer = match.first;
@@ -153,9 +117,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                     const Expanded(child: Text('مالک خودرو:', style: TextStyle(color: AppTheme.textGrey, fontSize: 13))),
                     TextButton.icon(
                       onPressed: () async {
-                        await _addQuickCustomer();
-                        // به‌روزرسانی state دیالوگ
-                        setStateDialog(() {});
+                        await _addQuickCustomer((newCustomer) {
+                          setStateDialog(() { selectedCustomer = newCustomer; });
+                        });
                       },
                       icon: const Icon(Icons.person_add, color: AppTheme.gold, size: 18),
                       label: const Text('مشتری جدید', style: TextStyle(color: AppTheme.gold, fontSize: 12)),
@@ -164,31 +128,12 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 ),
                 const SizedBox(height: 4),
                 if (_customers.isEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange.withOpacity(0.5)),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.orange, size: 18),
-                        SizedBox(width: 8),
-                        Expanded(child: Text('هنوز مشتری‌ای ثبت نشده. روی "مشتری جدید" کلیک کنید.', style: TextStyle(color: Colors.orange, fontSize: 12))),
-                      ],
-                    ),
-                  )
+                  Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange.withOpacity(0.5))), child: const Row(children: [Icon(Icons.info_outline, color: Colors.orange, size: 18), SizedBox(width: 8), Expanded(child: Text('هنوز مشتری‌ای ثبت نشده. روی "مشتری جدید" کلیک کنید.', style: TextStyle(color: Colors.orange, fontSize: 12)))]))
                 else
                   DropdownButtonFormField<Map<String, dynamic>>(
-                    value: selectedCustomer,
-                    dropdownColor: AppTheme.cardBlack,
-                    isExpanded: true,
+                    value: selectedCustomer, dropdownColor: AppTheme.cardBlack, isExpanded: true,
                     decoration: const InputDecoration(labelText: 'انتخاب مالک', prefixIcon: Icon(Icons.person, color: AppTheme.gold)),
-                    items: _customers.map((c) => DropdownMenuItem<Map<String, dynamic>>(
-                      value: c,
-                      child: Text('${c['name']} - ${c['phone']}', style: const TextStyle(color: AppTheme.textWhite), overflow: TextOverflow.ellipsis),
-                    )).toList(),
+                    items: _customers.map((c) => DropdownMenuItem<Map<String, dynamic>>(value: c, child: Text('${c['name']} - ${c['phone']}', style: const TextStyle(color: AppTheme.textWhite), overflow: TextOverflow.ellipsis))).toList(),
                     onChanged: (val) => setStateDialog(() => selectedCustomer = val),
                   ),
                 const SizedBox(height: 12),
@@ -209,23 +154,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف', style: TextStyle(color: AppTheme.textGrey))),
               ElevatedButton(
                 onPressed: () async {
-                  if (plateController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شماره پلاک الزامی است'), backgroundColor: Colors.red));
-                    return;
-                  }
-                  final vehData = {
-                    'plate_number': plateController.text.trim().toUpperCase(),
-                    'brand': brandController.text.trim(),
-                    'model': modelController.text.trim(),
-                    'customer_id': selectedCustomer?['id'],
-                    'current_mileage': int.tryParse(toEnglishDigits(mileageController.text)) ?? 0,
-                    'notes': notesController.text.trim(),
-                  };
-                  if (isEdit) {
-                    await DatabaseHelper.instance.updateVehicle(veh!['id'], vehData);
-                  } else {
-                    await DatabaseHelper.instance.insertVehicle(vehData);
-                  }
+                  if (plateController.text.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شماره پلاک الزامی است'), backgroundColor: Colors.red)); return; }
+                  final vehData = {'plate_number': plateController.text.trim().toUpperCase(), 'brand': brandController.text.trim(), 'model': modelController.text.trim(), 'customer_id': selectedCustomer?['id'], 'current_mileage': int.tryParse(toEnglishDigits(mileageController.text)) ?? 0, 'notes': notesController.text.trim()};
+                  if (isEdit) { await DatabaseHelper.instance.updateVehicle(veh!['id'], vehData); } 
+                  else { await DatabaseHelper.instance.insertVehicle(vehData); }
                   Navigator.pop(ctx);
                   _loadData();
                 },
@@ -240,10 +172,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
 
   Future<void> _deleteVehicle(int id) async {
     final confirm = await showDialog<bool>(context: context, builder: (ctx) => Directionality(textDirection: TextDirection.rtl, child: AlertDialog(backgroundColor: AppTheme.cardBlack, title: const Text('تایید حذف', style: TextStyle(color: AppTheme.gold)), content: const Text('آیا مطمئن هستید؟', style: TextStyle(color: AppTheme.textWhite)), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('انصراف')), TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف', style: TextStyle(color: Colors.red)))])));
-    if (confirm == true) {
-      await DatabaseHelper.instance.deleteVehicle(id);
-      _loadData();
-    }
+    if (confirm == true) { await DatabaseHelper.instance.deleteVehicle(id); _loadData(); }
   }
 
   @override
@@ -252,40 +181,25 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       backgroundColor: AppTheme.backgroundBlack,
       appBar: AppBar(title: const Text('مدیریت خودروها'), centerTitle: true, actions: [
         IconButton(icon: const Icon(Icons.refresh, color: AppTheme.gold), onPressed: _loadData),
-        IconButton(icon: const Icon(Icons.people, color: AppTheme.gold), onPressed: () async {
-          await _addQuickCustomer();
-        }, tooltip: 'افزودن مشتری'),
+        IconButton(icon: const Icon(Icons.people, color: AppTheme.gold), onPressed: () async { await _addQuickCustomer((_) {}); }, tooltip: 'افزودن مشتری'),
       ]),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              controller: _searchController,
-              textCapitalization: TextCapitalization.characters,
-              style: const TextStyle(color: AppTheme.textWhite),
-              decoration: InputDecoration(hintText: 'جستجو بر اساس پلاک، برند یا نام مشتری...', prefixIcon: const Icon(Icons.search, color: AppTheme.gold), suffixIcon: _searchController.text.isNotEmpty ? IconButton(icon: const Icon(Icons.clear, color: AppTheme.gold), onPressed: () { _searchController.clear(); _filterVehicles(''); }) : null, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
-              onChanged: _filterVehicles,
-            ),
-          ),
+          Padding(padding: const EdgeInsets.all(12), child: TextField(controller: _searchController, textCapitalization: TextCapitalization.characters, style: const TextStyle(color: AppTheme.textWhite), decoration: InputDecoration(hintText: 'جستجو بر اساس پلاک، برند یا نام مشتری...', prefixIcon: const Icon(Icons.search, color: AppTheme.gold), suffixIcon: _searchController.text.isNotEmpty ? IconButton(icon: const Icon(Icons.clear, color: AppTheme.gold), onPressed: () { _searchController.clear(); _filterVehicles(''); }) : null, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), onChanged: _filterVehicles)),
           Expanded(
             child: _isLoading ? const Center(child: CircularProgressIndicator(color: AppTheme.gold)) : _filteredVehicles.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.directions_car, size: 80, color: AppTheme.textGrey), const SizedBox(height: 16), Text('خودرویی یافت نشد', style: TextStyle(fontSize: 18, color: AppTheme.textGrey))])) : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: _filteredVehicles.length,
+              padding: const EdgeInsets.all(12), itemCount: _filteredVehicles.length,
               itemBuilder: (context, index) {
                 final v = _filteredVehicles[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    leading: CircleAvatar(backgroundColor: AppTheme.oilBlue.withOpacity(0.2), child: const Icon(Icons.directions_car, color: AppTheme.oilBlue)),
-                    title: Text(v['plate_number'] ?? '', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold, fontFamily: 'monospace', fontSize: 16)),
-                    subtitle: Text('${v['brand'] ?? ''} ${v['model'] ?? ''} | ${formatNumber(v['current_mileage'] ?? 0)} کیلومتر\nمالک: ${v['customer_name'] ?? 'ثبت نشده'}', style: const TextStyle(color: AppTheme.textGrey)),
-                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                      IconButton(icon: const Icon(Icons.edit, color: AppTheme.gold), onPressed: () => _showVehicleDialog(veh: v)),
-                      IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteVehicle(v['id'])),
-                    ]),
-                  ),
-                );
+                return Card(margin: const EdgeInsets.only(bottom: 12), child: ListTile(
+                  leading: CircleAvatar(backgroundColor: AppTheme.oilBlue.withOpacity(0.2), child: const Icon(Icons.directions_car, color: AppTheme.oilBlue)),
+                  title: Text(v['plate_number'] ?? '', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold, fontFamily: 'monospace', fontSize: 16)),
+                  subtitle: Text('${v['brand'] ?? ''} ${v['model'] ?? ''} | ${formatNumber(v['current_mileage'] ?? 0)} کیلومتر\nمالک: ${v['customer_name'] ?? 'ثبت نشده'}', style: const TextStyle(color: AppTheme.textGrey)),
+                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    IconButton(icon: const Icon(Icons.edit, color: AppTheme.gold), onPressed: () => _showVehicleDialog(veh: v)),
+                    IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteVehicle(v['id'])),
+                  ]),
+                ));
               },
             ),
           ),
