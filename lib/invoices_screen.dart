@@ -6,7 +6,6 @@ import 'app_utils.dart';
 
 class InvoicesScreen extends StatefulWidget {
   const InvoicesScreen({super.key});
-
   @override
   State<InvoicesScreen> createState() => _InvoicesScreenState();
 }
@@ -16,10 +15,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   bool _isLoading = true;
 
   @override
-  void initState() {
-    super.initState();
-    _loadInvoices();
-  }
+  void initState() { super.initState(); _loadInvoices(); }
 
   Future<void> _loadInvoices() async {
     setState(() => _isLoading = true);
@@ -32,12 +28,45 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     if (result == true) _loadInvoices();
   }
 
+  // مورد ۱۴: نمایش اقلام فاکتور با کلیک
+  void _showInvoiceItems(Map<String, dynamic> inv) {
+    List<dynamic> items = [];
+    try { items = jsonDecode(inv['items_json'] ?? '[]'); } catch (e) {}
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: AppTheme.cardBlack,
+          title: Text('اقلام فاکتور ${inv['invoice_number']}', style: const TextStyle(color: AppTheme.gold)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: items.isEmpty 
+              ? const Text('موردی یافت نشد', style: TextStyle(color: AppTheme.textGrey))
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    return ListTile(
+                      leading: Icon(item['type'] == 'product' ? Icons.inventory_2 : Icons.build, color: AppTheme.gold),
+                      title: Text(item['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite)),
+                      trailing: Text('${formatPrice(item['price'] * item['quantity'])} تومان', style: const TextStyle(color: AppTheme.textYellow)),
+                      subtitle: Text('${formatPrice(item['price'])} × ${toPersianDigits(item['quantity'].toString())}', style: const TextStyle(color: AppTheme.textGrey)),
+                    );
+                  },
+                ),
+          ),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('بستن', style: TextStyle(color: AppTheme.gold)))],
+        ),
+      ),
+    );
+  }
+
   Future<void> _deleteInvoice(int id) async {
     final confirm = await showDialog<bool>(context: context, builder: (ctx) => Directionality(textDirection: TextDirection.rtl, child: AlertDialog(backgroundColor: AppTheme.cardBlack, title: const Text('تایید حذف', style: TextStyle(color: AppTheme.gold)), content: const Text('آیا مطمئن هستید؟', style: TextStyle(color: AppTheme.textWhite)), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('انصراف')), TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف', style: TextStyle(color: Colors.red)))])));
-    if (confirm == true) {
-      await DatabaseHelper.instance.deleteInvoice(id);
-      _loadInvoices();
-    }
+    if (confirm == true) { await DatabaseHelper.instance.deleteInvoice(id); _loadInvoices(); }
   }
 
   @override
@@ -46,47 +75,44 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
       backgroundColor: AppTheme.backgroundBlack,
       appBar: AppBar(title: const Text('فاکتورها'), centerTitle: true, actions: [IconButton(icon: const Icon(Icons.refresh, color: AppTheme.gold), onPressed: _loadInvoices)]),
       body: _isLoading ? const Center(child: CircularProgressIndicator(color: AppTheme.gold)) : _invoices.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.receipt_long, size: 80, color: AppTheme.textGrey), const SizedBox(height: 16), Text('هنوز فاکتوری ثبت نشده', style: TextStyle(fontSize: 18, color: AppTheme.textGrey))])) : ListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: _invoices.length,
+        padding: const EdgeInsets.all(12), itemCount: _invoices.length,
         itemBuilder: (context, index) {
           final inv = _invoices[index];
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: AppTheme.gold.withOpacity(0.2), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.gold)), child: Text('شماره: ${inv['invoice_number']}', style: const TextStyle(color: AppTheme.gold, fontWeight: FontWeight.bold, fontSize: 12))),
-                  const Spacer(),
-                  Text(inv['invoice_date'] ?? '', style: const TextStyle(color: AppTheme.textGrey, fontSize: 12)),
+            child: InkWell(
+              onTap: () => _showInvoiceItems(inv), // مورد ۱۴
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: AppTheme.gold.withOpacity(0.2), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.gold)), child: Text('شماره: ${inv['invoice_number']}', style: const TextStyle(color: AppTheme.gold, fontWeight: FontWeight.bold, fontSize: 12))),
+                    const Spacer(),
+                    Text(inv['invoice_date'] ?? '', style: const TextStyle(color: AppTheme.textGrey, fontSize: 12)),
+                  ]),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    const Icon(Icons.directions_car, size: 16, color: AppTheme.oilBlue),
+                    const SizedBox(width: 4),
+                    Expanded(child: Text('${inv['plate_number'] ?? 'نامشخص'} | ${inv['brand'] ?? ''} ${inv['model'] ?? ''}', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold))),
+                  ]),
+                  const SizedBox(height: 6),
+                  Row(children: [
+                    const Icon(Icons.person, size: 16, color: AppTheme.textGrey),
+                    const SizedBox(width: 4),
+                    Text('مشتری: ${inv['customer_name'] ?? 'نامشخص'}', style: const TextStyle(color: AppTheme.textGrey)),
+                  ]),
+                  const Divider(color: AppTheme.gold, height: 20),
+                  Row(children: [
+                    const Icon(Icons.attach_money, size: 20, color: AppTheme.gold),
+                    const SizedBox(width: 8),
+                    Text('مبلغ کل: ${formatPrice(inv['total'])} تومان', style: const TextStyle(color: AppTheme.textYellow, fontWeight: FontWeight.bold, fontSize: 16)),
+                    const Spacer(),
+                    IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteInvoice(inv['id'])),
+                  ]),
                 ]),
-                const SizedBox(height: 12),
-                Row(children: [
-                  const Icon(Icons.directions_car, size: 16, color: AppTheme.oilBlue),
-                  const SizedBox(width: 4),
-                  Expanded(child: Text('${inv['plate_number'] ?? 'نامشخص'} | ${inv['brand'] ?? ''} ${inv['model'] ?? ''}', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold))),
-                ]),
-                const SizedBox(height: 6),
-                Row(children: [
-                  const Icon(Icons.person, size: 16, color: AppTheme.textGrey),
-                  const SizedBox(width: 4),
-                  Text('مشتری: ${inv['customer_name'] ?? 'نامشخص'}', style: const TextStyle(color: AppTheme.textGrey)),
-                ]),
-                const SizedBox(height: 6),
-                Row(children: [
-                  const Icon(Icons.engineering, size: 16, color: AppTheme.textGrey),
-                  const SizedBox(width: 4),
-                  Text('تکنسین: ${inv['employee_name'] ?? 'نامشخص'}', style: const TextStyle(color: AppTheme.textGrey)),
-                ]),
-                const Divider(color: AppTheme.gold, height: 20),
-                Row(children: [
-                  const Icon(Icons.attach_money, size: 20, color: AppTheme.gold),
-                  const SizedBox(width: 8),
-                  Text('مبلغ کل: ${formatPrice(inv['total'])} تومان', style: const TextStyle(color: AppTheme.textYellow, fontWeight: FontWeight.bold, fontSize: 16)),
-                  const Spacer(),
-                  IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteInvoice(inv['id'])),
-                ]),
-              ]),
+              ),
             ),
           );
         },
@@ -99,7 +125,6 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 // ===== صفحه ساخت فاکتور =====
 class CreateInvoiceScreen extends StatefulWidget {
   const CreateInvoiceScreen({super.key});
-
   @override
   State<CreateInvoiceScreen> createState() => _CreateInvoiceScreenState();
 }
@@ -114,19 +139,16 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   Map<String, dynamic>? _selectedEmployee;
   Jalali _invoiceDate = Jalali.now();
   final _mileageController = TextEditingController();
+  final _nextMileageController = TextEditingController(); // مورد ۱۲
   final _discountController = TextEditingController(text: '0');
   final _notesController = TextEditingController();
   
   List<Map<String, dynamic>> _invoiceItems = [];
-  
   bool _isLoading = true;
   bool _isSaving = false;
 
   @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
+  void initState() { super.initState(); _loadData(); }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
@@ -149,93 +171,46 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       final idx = _invoiceItems.indexOf(existing.first);
       setState(() => _invoiceItems[idx]['quantity']++);
     } else {
-      setState(() => _invoiceItems.add({
-        'type': 'product',
-        'id': product['id'],
-        'name': '${product['name']} ${product['viscosity'] ?? ''} ${product['volume'] ?? ''}',
-        'price': (product['sell_price'] ?? 0).toDouble(),
-        'quantity': 1,
-      }));
+      setState(() => _invoiceItems.add({'type': 'product', 'id': product['id'], 'name': '${product['name']} ${product['viscosity'] ?? ''} ${product['volume'] ?? ''}', 'price': (product['sell_price'] ?? 0).toDouble(), 'quantity': 1}));
     }
   }
 
   void _addServiceItem(Map<String, dynamic> service) {
     final exists = _invoiceItems.any((i) => i['type'] == 'service' && i['id'] == service['id']);
     if (!exists) {
-      setState(() => _invoiceItems.add({
-        'type': 'service',
-        'id': service['id'],
-        'name': service['name'],
-        'price': (service['price'] ?? 0).toDouble(),
-        'quantity': 1,
-      }));
+      setState(() => _invoiceItems.add({'type': 'service', 'id': service['id'], 'name': service['name'], 'price': (service['price'] ?? 0).toDouble(), 'quantity': 1}));
     }
   }
 
-  void _removeItem(int index) {
-    setState(() => _invoiceItems.removeAt(index));
-  }
+  void _removeItem(int index) { setState(() => _invoiceItems.removeAt(index)); }
+  void _updateQuantity(int index, int newQty) { if (newQty < 1) return; setState(() => _invoiceItems[index]['quantity'] = newQty); }
 
-  void _updateQuantity(int index, int newQty) {
-    if (newQty < 1) return;
-    setState(() => _invoiceItems[index]['quantity'] = newQty);
-  }
-
-  double get _subtotal {
-    return _invoiceItems.fold(0.0, (sum, item) => sum + (item['price'] * item['quantity']));
-  }
-
-  double get _discount {
-    return double.tryParse(toEnglishDigits(_discountController.text)) ?? 0;
-  }
-
-  double get _total {
-    return _subtotal - _discount;
-  }
-
-  String _generateInvoiceNumber() {
-    final now = Jalali.now();
-    final dateStr = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
-    final timeStr = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
-    return 'HOMA-$dateStr-$timeStr';
-  }
+  double get _subtotal => _invoiceItems.fold(0.0, (sum, item) => sum + (item['price'] * item['quantity']));
+  double get _discount => double.tryParse(toEnglishDigits(_discountController.text.replaceAll(',', ''))) ?? 0.0; // مورد ۱۵: اصلاح پارس کردن
+  double get _total => _subtotal - _discount;
 
   Future<void> _saveInvoice() async {
-    if (_selectedVehicle == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('خودرو را انتخاب کنید'), backgroundColor: Colors.red));
-      return;
-    }
-    if (_selectedEmployee == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تکنسین را انتخاب کنید'), backgroundColor: Colors.red));
-      return;
-    }
-    if (_invoiceItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('حداقل یک کالا یا خدمت اضافه کنید'), backgroundColor: Colors.red));
+    if (_selectedVehicle == null || _selectedEmployee == null || _invoiceItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لطفاً خودرو، تکنسین و حداقل یک آیتم را انتخاب کنید'), backgroundColor: Colors.red));
       return;
     }
 
     setState(() => _isSaving = true);
-
     try {
-      final invoiceNumber = _generateInvoiceNumber();
+      final invoiceNumber = await generateDailyInvoiceNumber(); // مورد ۱۳
       final dateStr = '${_invoiceDate.year}/${_invoiceDate.month.toString().padLeft(2, '0')}/${_invoiceDate.day.toString().padLeft(2, '0')}';
+      final currentMileage = int.tryParse(toEnglishDigits(_mileageController.text)) ?? 0;
+      final nextMileage = int.tryParse(toEnglishDigits(_nextMileageController.text)) ?? 0;
       
+      // ۱. ثبت فاکتور
       await DatabaseHelper.instance.insertInvoice({
-        'invoice_number': invoiceNumber,
-        'vehicle_id': _selectedVehicle!['id'],
-        'customer_id': _selectedVehicle!['customer_id'],
-        'employee_id': _selectedEmployee!['id'],
-        'invoice_date': dateStr,
-        'mileage_at_service': int.tryParse(toEnglishDigits(_mileageController.text)) ?? 0,
-        'items_json': jsonEncode(_invoiceItems),
-        'subtotal': _subtotal,
-        'discount': _discount,
-        'total': _total,
-        'payment_method': 'cash',
-        'status': 'paid',
-        'notes': _notesController.text.trim(),
+        'invoice_number': invoiceNumber, 'vehicle_id': _selectedVehicle!['id'], 'customer_id': _selectedVehicle!['customer_id'],
+        'employee_id': _selectedEmployee!['id'], 'invoice_date': dateStr, 'mileage_at_service': currentMileage,
+        'items_json': jsonEncode(_invoiceItems), 'subtotal': _subtotal, 'discount': _discount, 'total': _total,
+        'payment_method': 'cash', 'status': 'paid', 'notes': _notesController.text.trim(),
       });
 
+      // ۲. کاهش موجودی کالاها
       for (final item in _invoiceItems) {
         if (item['type'] == 'product') {
           final product = _products.firstWhere((p) => p['id'] == item['id']);
@@ -244,25 +219,37 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
         }
       }
 
-      final mileage = int.tryParse(toEnglishDigits(_mileageController.text)) ?? 0;
-      if (mileage > 0) {
-        await DatabaseHelper.instance.updateVehicle(_selectedVehicle!['id'], {
-          'current_mileage': mileage,
-          'last_service_date': dateStr,
-          'last_service_mileage': mileage,
+      // ۳. به‌روزرسانی کیلومتر خودرو
+      if (currentMileage > 0) {
+        await DatabaseHelper.instance.updateVehicle(_selectedVehicle!['id'], {'current_mileage': currentMileage, 'last_service_date': dateStr, 'last_service_mileage': currentMileage});
+      }
+
+      // ۴. مورد ۱۶: ثبت در سوابق سرویس (اگر روغن یا سرویس مرتبط باشد)
+      final hasOilService = _invoiceItems.any((i) => i['name'].toString().contains('روغن') || i['name'].toString().contains('فیلتر'));
+      if (hasOilService) {
+        final oilItem = _invoiceItems.firstWhere((i) => i['name'].toString().contains('روغن'), orElse: () => {'name': 'سرویس دوره'});
+        await DatabaseHelper.instance.insertServiceHistory({
+          'vehicle_id': _selectedVehicle!['id'],
+          'invoice_id': null, // می‌توانید بعداً لینک کنید
+          'service_type': 'تعویض روغن و سرویس',
+          'oil_brand': oilItem['name'] ?? 'نامشخص',
+          'oil_viscosity': '',
+          'oil_volume': 0.0,
+          'mileage': currentMileage,
+          'next_service_mileage': nextMileage > 0 ? nextMileage : null,
+          'next_service_date': null,
+          'technician_notes': _notesController.text.trim(),
         });
       }
 
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✓ فاکتور $invoiceNumber ثبت شد'), backgroundColor: Colors.green, duration: const Duration(seconds: 3)),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✓ فاکتور $invoiceNumber ثبت شد'), backgroundColor: Colors.green, duration: const Duration(seconds: 3)));
         Navigator.pop(context, true);
       }
     } catch (e) {
       setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطا: $e'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطا در ثبت: $e'), backgroundColor: Colors.red));
     }
   }
 
@@ -279,52 +266,27 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
             const Text('۱. خودرو', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
             const SizedBox(height: 8),
             DropdownButtonFormField<Map<String, dynamic>>(
-              value: _selectedVehicle,
-              dropdownColor: AppTheme.cardBlack,
+              value: _selectedVehicle, dropdownColor: AppTheme.cardBlack,
               decoration: const InputDecoration(labelText: 'انتخاب خودرو', prefixIcon: Icon(Icons.directions_car, color: AppTheme.gold)),
-              items: _vehicles.map((v) => DropdownMenuItem<Map<String, dynamic>>(
-                value: v,
-                child: Text('${v['plate_number']} - ${v['brand'] ?? ''} ${v['model'] ?? ''} (${v['customer_name'] ?? 'بدون مالک'})', style: const TextStyle(color: AppTheme.textWhite)),
-              )).toList(),
+              items: _vehicles.map((v) => DropdownMenuItem<Map<String, dynamic>>(value: v, child: Text('${v['plate_number']} - ${v['brand'] ?? ''} ${v['model'] ?? ''}', style: const TextStyle(color: AppTheme.textWhite)))).toList(),
               onChanged: (val) => setState(() => _selectedVehicle = val),
             ),
-            if (_selectedVehicle != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: AppTheme.cardBlack, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.gold, width: 0.5)),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('پلاک: ${_selectedVehicle!['plate_number']}', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text('مالک: ${_selectedVehicle!['customer_name'] ?? 'ثبت نشده'}', style: const TextStyle(color: AppTheme.textGrey)),
-                  Text('کیلومتر فعلی: ${formatNumber(_selectedVehicle!['current_mileage'] ?? 0)}', style: const TextStyle(color: AppTheme.textGrey)),
-                ]),
-              ),
-            ],
             const SizedBox(height: 16),
-            
-            TextField(
-              controller: _mileageController,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(color: AppTheme.textWhite),
-              decoration: const InputDecoration(labelText: 'کیلومتر فعلی خودرو', prefixIcon: Icon(Icons.speed, color: AppTheme.gold)),
-            ),
+            Row(children: [
+              Expanded(child: TextField(controller: _mileageController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کیلومتر فعلی (هنگام سرویس)', prefixIcon: Icon(Icons.speed, color: AppTheme.gold)))), // مورد ۱۲
+              const SizedBox(width: 8),
+              Expanded(child: TextField(controller: _nextMileageController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کیلومتر سرویس بعدی', prefixIcon: Icon(Icons.next_plan, color: AppTheme.gold)))), // مورد ۱۲
+            ]),
             const SizedBox(height: 16),
-            
             const Text('۲. تکنسین', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
             const SizedBox(height: 8),
             DropdownButtonFormField<Map<String, dynamic>>(
-              value: _selectedEmployee,
-              dropdownColor: AppTheme.cardBlack,
+              value: _selectedEmployee, dropdownColor: AppTheme.cardBlack,
               decoration: const InputDecoration(labelText: 'انتخاب تکنسین', prefixIcon: Icon(Icons.engineering, color: AppTheme.gold)),
-              items: _employees.map((e) => DropdownMenuItem<Map<String, dynamic>>(
-                value: e,
-                child: Text(e['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite)),
-              )).toList(),
+              items: _employees.map((e) => DropdownMenuItem<Map<String, dynamic>>(value: e, child: Text(e['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite)))).toList(),
               onChanged: (val) => setState(() => _selectedEmployee = val),
             ),
             const SizedBox(height: 16),
-            
             OutlinedButton.icon(
               onPressed: () async {
                 final picked = await showPersianDatePicker(context: context, initialDate: _invoiceDate, firstDate: Jalali(1400), lastDate: Jalali(1450));
@@ -335,110 +297,43 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
               style: OutlinedButton.styleFrom(side: const BorderSide(color: AppTheme.gold)),
             ),
             const SizedBox(height: 24),
-            
             const Text('۳. کالاها', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _products.map((p) {
-                return ActionChip(
-                  label: Text('${p['name']} (${formatNumber(p['stock_quantity'] ?? 0)})', style: const TextStyle(color: AppTheme.textWhite, fontSize: 12)),
-                  backgroundColor: AppTheme.cardBlack,
-                  side: const BorderSide(color: AppTheme.gold),
-                  onPressed: () => _addProductItem(p),
-                );
-              }).toList(),
-            ),
+            Wrap(spacing: 8, runSpacing: 8, children: _products.map((p) => ActionChip(label: Text('${p['name']} (${formatNumber(p['stock_quantity'] ?? 0)})', style: const TextStyle(color: AppTheme.textWhite, fontSize: 12)), backgroundColor: AppTheme.cardBlack, side: const BorderSide(color: AppTheme.gold), onPressed: () => _addProductItem(p))).toList()),
             const SizedBox(height: 16),
-            
             const Text('۴. خدمات', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _services.map((s) {
-                return ActionChip(
-                  label: Text('${s['name']} (${formatPrice(s['price'])})', style: const TextStyle(color: AppTheme.textWhite, fontSize: 12)),
-                  backgroundColor: AppTheme.cardBlack,
-                  side: const BorderSide(color: AppTheme.oilBlue),
-                  onPressed: () => _addServiceItem(s),
-                );
-              }).toList(),
-            ),
+            Wrap(spacing: 8, runSpacing: 8, children: _services.map((s) => ActionChip(label: Text('${s['name']} (${formatPrice(s['price'])})', style: const TextStyle(color: AppTheme.textWhite, fontSize: 12)), backgroundColor: AppTheme.cardBlack, side: const BorderSide(color: AppTheme.oilBlue), onPressed: () => _addServiceItem(s))).toList()),
             const SizedBox(height: 24),
             
             if (_invoiceItems.isNotEmpty) ...[
               const Text('۵. آیتم‌های فاکتور', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
               const SizedBox(height: 8),
               ..._invoiceItems.asMap().entries.map((entry) {
-                final idx = entry.key;
-                final item = entry.value;
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(children: [
-                      Expanded(
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text(item['name'], style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 4),
-                          Text('${formatPrice(item['price'])} × ${toPersianDigits(item['quantity'].toString())} = ${formatPrice(item['price'] * item['quantity'])} تومان', style: const TextStyle(color: AppTheme.textYellow)),
-                        ]),
-                      ),
-                      IconButton(icon: const Icon(Icons.remove_circle_outline, color: AppTheme.gold), onPressed: () => _updateQuantity(idx, item['quantity'] - 1)),
-                      Text(toPersianDigits(item['quantity'].toString()), style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold, fontSize: 16)),
-                      IconButton(icon: const Icon(Icons.add_circle_outline, color: AppTheme.gold), onPressed: () => _updateQuantity(idx, item['quantity'] + 1)),
-                      IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _removeItem(idx)),
-                    ]),
-                  ),
-                );
+                final idx = entry.key; final item = entry.value;
+                return Card(margin: const EdgeInsets.only(bottom: 8), child: Padding(padding: const EdgeInsets.all(12), child: Row(children: [
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(item['name'], style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold)), const SizedBox(height: 4), Text('${formatPrice(item['price'])} × ${toPersianDigits(item['quantity'].toString())} = ${formatPrice(item['price'] * item['quantity'])} تومان', style: const TextStyle(color: AppTheme.textYellow))])),
+                  IconButton(icon: const Icon(Icons.remove_circle_outline, color: AppTheme.gold), onPressed: () => _updateQuantity(idx, item['quantity'] - 1)),
+                  Text(toPersianDigits(item['quantity'].toString()), style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold, fontSize: 16)),
+                  IconButton(icon: const Icon(Icons.add_circle_outline, color: AppTheme.gold), onPressed: () => _updateQuantity(idx, item['quantity'] + 1)),
+                  IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _removeItem(idx)),
+                ])));
               }),
               const SizedBox(height: 16),
-              
-              TextField(
-                controller: _discountController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: AppTheme.textWhite),
-                decoration: const InputDecoration(labelText: 'تخفیف (تومان)', prefixIcon: Icon(Icons.discount, color: AppTheme.gold)),
-              ),
+              TextField(controller: _discountController, keyboardType: TextInputType.number, inputFormatters: [CommaSeparatorFormatter()], style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'تخفیف (تومان)', prefixIcon: Icon(Icons.discount, color: AppTheme.gold))), // مورد ۹
               const SizedBox(height: 16),
-              
-              TextField(
-                controller: _notesController,
-                maxLines: 2,
-                style: const TextStyle(color: AppTheme.textWhite),
-                decoration: const InputDecoration(labelText: 'یادداشت', prefixIcon: Icon(Icons.notes, color: AppTheme.gold)),
-              ),
+              TextField(controller: _notesController, maxLines: 2, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'یادداشت', prefixIcon: Icon(Icons.notes, color: AppTheme.gold))),
               const SizedBox(height: 16),
-              
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: AppTheme.cardBlack, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.gold, width: 2)),
-                child: Column(children: [
-                  Row(children: [const Text('جمع کل:', style: TextStyle(color: AppTheme.textGrey)), const Spacer(), Text('${formatPrice(_subtotal)} تومان', style: const TextStyle(color: AppTheme.textWhite))]),
-                  const SizedBox(height: 8),
-                  Row(children: [const Text('تخفیف:', style: TextStyle(color: AppTheme.textGrey)), const Spacer(), Text('${formatPrice(_discount)} تومان', style: const TextStyle(color: Colors.red))]),
-                  const Divider(color: AppTheme.gold, height: 20),
-                  Row(children: [const Text('مبلغ نهایی:', style: TextStyle(color: AppTheme.gold, fontWeight: FontWeight.bold, fontSize: 18)), const Spacer(), Text('${formatPrice(_total)} تومان', style: const TextStyle(color: AppTheme.textYellow, fontWeight: FontWeight.bold, fontSize: 20))]),
-                ]),
-              ),
+              Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: AppTheme.cardBlack, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.gold, width: 2)), child: Column(children: [
+                Row(children: [const Text('جمع کل:', style: TextStyle(color: AppTheme.textGrey)), const Spacer(), Text('${formatPrice(_subtotal)} تومان', style: const TextStyle(color: AppTheme.textWhite))]),
+                const SizedBox(height: 8),
+                Row(children: [const Text('تخفیف:', style: TextStyle(color: AppTheme.textGrey)), const Spacer(), Text('${formatPrice(_discount)} تومان', style: const TextStyle(color: Colors.red))]),
+                const Divider(color: AppTheme.gold, height: 20),
+                Row(children: [const Text('مبلغ نهایی:', style: TextStyle(color: AppTheme.gold, fontWeight: FontWeight.bold, fontSize: 18)), const Spacer(), Text('${formatPrice(_total)} تومان', style: const TextStyle(color: AppTheme.textYellow, fontWeight: FontWeight.bold, fontSize: 20))]),
+              ])),
               const SizedBox(height: 24),
-              
-              SizedBox(
-                height: 55,
-                child: ElevatedButton.icon(
-                  onPressed: _isSaving ? null : _saveInvoice,
-                  icon: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) : const Icon(Icons.check_circle, size: 24),
-                  label: Text(_isSaving ? 'در حال ثبت...' : 'ثبت فاکتور', style: const TextStyle(fontSize: 18)),
-                ),
-              ),
-            ] else
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(color: AppTheme.cardBlack, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.gold.withOpacity(0.3))),
-                child: const Center(child: Text('از بخش کالاها و خدمات بالا، آیتم‌ها را اضافه کنید', style: TextStyle(color: AppTheme.textGrey))),
-              ),
+              SizedBox(height: 55, child: ElevatedButton.icon(onPressed: _isSaving ? null : _saveInvoice, icon: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) : const Icon(Icons.check_circle, size: 24), label: Text(_isSaving ? 'در حال ثبت...' : 'ثبت فاکتور', style: const TextStyle(fontSize: 18)))),
+            ] else Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: AppTheme.cardBlack, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.gold.withOpacity(0.3))), child: const Center(child: Text('از بخش کالاها و خدمات بالا، آیتم‌ها را اضافه کنید', style: TextStyle(color: AppTheme.textGrey)))),
           ]),
         ),
       ),
