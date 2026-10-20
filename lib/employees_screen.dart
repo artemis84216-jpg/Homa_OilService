@@ -86,4 +86,49 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                   }
                   final empData = {
                     'name': nameController.text.trim(), 'phone': phoneController.text.trim(), 'password': passwordController.text.trim(),
-                    'role': role, 'commission_rate': double.tryParse(toEnglishDigits(commissionController.text)) ?? 0.0
+                    'role': role, 'commission_rate': double.tryParse(toEnglishDigits(commissionController.text)) ?? 0.0,
+                    'base_salary': double.tryParse(toEnglishDigits(salaryController.text)) ?? 0.0, 'status': status
+                  };
+                  if (isEdit) { await DatabaseHelper.instance.updateEmployee(emp!['id'], empData); } 
+                  else { await DatabaseHelper.instance.insertEmployee(empData); }
+                  Navigator.pop(ctx);
+                  _loadEmployees();
+                },
+                child: Text(isEdit ? 'ذخیره' : 'افزودن'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteEmployee(int id) async {
+    final confirm = await showDialog<bool>(context: context, builder: (ctx) => Directionality(textDirection: TextDirection.rtl, child: AlertDialog(backgroundColor: AppTheme.cardBlack, title: const Text('تایید حذف', style: TextStyle(color: AppTheme.gold)), content: const Text('آیا مطمئن هستید؟', style: TextStyle(color: AppTheme.textWhite)), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('انصراف')), TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف', style: TextStyle(color: Colors.red)))])));
+    if (confirm == true) { await DatabaseHelper.instance.deleteEmployee(id); _loadEmployees(); }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundBlack,
+      appBar: AppBar(title: const Text('مدیریت کارمندان'), centerTitle: true, actions: [IconButton(icon: const Icon(Icons.refresh, color: AppTheme.gold), onPressed: _loadEmployees)]),
+      body: _isLoading ? const Center(child: CircularProgressIndicator(color: AppTheme.gold)) : _employees.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.people, size: 80, color: AppTheme.textGrey), const SizedBox(height: 16), Text('هنوز کارمندی ثبت نشده', style: TextStyle(fontSize: 18, color: AppTheme.textGrey))])) : ListView.builder(
+        padding: const EdgeInsets.all(12), itemCount: _employees.length,
+        itemBuilder: (context, index) {
+          final emp = _employees[index];
+          return Card(margin: const EdgeInsets.only(bottom: 12), child: ListTile(
+            leading: CircleAvatar(backgroundColor: AppTheme.gold.withOpacity(0.2), child: Icon(Icons.person, color: AppTheme.gold)),
+            title: Text(emp['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold)),
+            subtitle: Text('${emp['role'] == 'technician' ? 'تکنسین' : (emp['role'] == 'cashier' ? 'صندوق‌دار' : 'مدیر')} | حقوق: ${formatPrice(emp['base_salary'])}\nرمز: ${emp['password']}', style: const TextStyle(color: AppTheme.textGrey)),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(icon: const Icon(Icons.edit, color: AppTheme.gold), onPressed: () => _showEmployeeDialog(emp: emp)),
+              IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteEmployee(emp['id'])),
+            ]),
+          ));
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(onPressed: () => _showEmployeeDialog(), backgroundColor: AppTheme.gold, foregroundColor: Colors.black, icon: const Icon(Icons.add), label: const Text('افزودن کارمند')),
+    );
+  }
+}
