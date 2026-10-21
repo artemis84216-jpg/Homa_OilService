@@ -202,4 +202,15 @@ class DatabaseHelper {
     await db.delete('employees'); await db.delete('expenses'); await db.delete('plans');
     await db.delete('licenses'); await db.delete('invitations');
   }
+  // دریافت تمام سوابق سرویس همراه با اطلاعات خودرو و مشتری برای جستجوی سراسری
+  Future<List<Map<String, dynamic>>> getAllServiceHistoryWithDetails() async {
+    final db = await instance.database;
+    return await db.rawQuery('''
+      SELECT sh.*, v.plate_number, v.brand, v.model, c.name as customer_name, c.national_id
+      FROM service_history sh
+      JOIN vehicles v ON sh.vehicle_id = v.id
+      LEFT JOIN customers c ON v.customer_id = c.id
+      ORDER BY sh.id DESC
+    ''');
+  }
 }
