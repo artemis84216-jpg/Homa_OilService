@@ -33,7 +33,6 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     });
   }
 
-  // تابع کمکی برای نمایش لیست کشویی قابل جستجو (حل مورد ۴)
   Future<Map<String, dynamic>?> _showSearchableCustomerList() async {
     String query = '';
     List<Map<String, dynamic>> filtered = List.from(_customers);
@@ -134,7 +133,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       ),
     );
     if (result != null) {
-      // حل مورد ۳: آپدیت آنی لیست والد و دیالوگ
+      // آپدیت آنی لیست والد
       setState(() => _customers.add(result));
       onAdded(result);
     }
@@ -177,6 +176,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                     TextButton.icon(
                       onPressed: () async {
                         await _addQuickCustomer((newCustomer) {
+                          // آپدیت آنی داخل دیالوگ
                           setStateDialog(() { selectedCustomer = newCustomer; });
                         });
                       },
@@ -186,7 +186,6 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                // حل مورد ۴: استفاده از لیست قابل جستجو به جای Dropdown معمولی
                 InkWell(
                   onTap: () async {
                     final selected = await _showSearchableCustomerList();
