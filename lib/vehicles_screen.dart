@@ -5,6 +5,7 @@ import 'app_utils.dart';
 
 class VehiclesScreen extends StatefulWidget {
   const VehiclesScreen({super.key});
+
   @override
   State<VehiclesScreen> createState() => _VehiclesScreenState();
 }
@@ -17,79 +18,113 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   final _searchController = TextEditingController();
 
   @override
-  void initState() { super.initState(); _loadData(); }
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    final vehicles = await DatabaseHelper.instance.getAllVehicles();
     final customers = await DatabaseHelper.instance.getAllCustomers();
-    setState(() { _vehicles = vehicles; _filteredVehicles = vehicles; _customers = customers; _isLoading = false; });
+    final vehicles = await DatabaseHelper.instance.getAllVehicles();
+    setState(() {
+      _customers = customers;
+      _vehicles = vehicles;
+      _filteredVehicles = vehicles;
+      _isLoading = false;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✓ لیست بروزرسانی شد'), backgroundColor: AppTheme.gold),
+      );
+    }
   }
 
   void _filterVehicles(String query) {
+    final q = query.trim().toLowerCase();
     setState(() {
-      if (query.isEmpty) { _filteredVehicles = _vehicles; }
-      else { _filteredVehicles = _vehicles.where((v) => (v['plate_number'] ?? '').toString().contains(query) || (v['brand'] ?? '').toString().contains(query) || (v['customer_name'] ?? '').toString().contains(query)).toList(); }
+      if (q.isEmpty) {
+        _filteredVehicles = List.from(_vehicles);
+      } else {
+        _filteredVehicles = _vehicles.where((v) {
+          return (v['plate_number'] ?? '').toString().toLowerCase().contains(q) ||
+              (v['brand'] ?? '').toString().toLowerCase().contains(q) ||
+              (v['model'] ?? '').toString().toLowerCase().contains(q) ||
+              (v['customer_name'] ?? '').toString().toLowerCase().contains(q);
+        }).toList();
+      }
     });
   }
 
+  // لیست جستجوی مالک
   Future<Map<String, dynamic>?> _showSearchableCustomerList() async {
     String query = '';
     List<Map<String, dynamic>> filtered = List.from(_customers);
-    
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       backgroundColor: AppTheme.cardBlack,
       isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: TextField(
-                  autofocus: true,
-                  style: const TextStyle(color: AppTheme.textWhite),
-                  decoration: InputDecoration(
-                    hintText: 'جستجوی نام یا شماره تماس...',
-                    prefixIcon: const Icon(Icons.search, color: AppTheme.gold),
-                    suffixIcon: IconButton(icon: const Icon(Icons.clear, color: AppTheme.gold), onPressed: () {
-                      setModalState(() { query = ''; filtered = List.from(_customers); });
-                    }),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        builder: (ctx, setModalState) => SizedBox(
+          height: screenHeight * 0.75,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                const Text('انتخاب مالک خودرو', style: TextStyle(color: AppTheme.gold, fontSize: 18, fontWeight: FontWeight.bold)),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: TextField(
+                    style: const TextStyle(color: AppTheme.textWhite),
+                    decoration: InputDecoration(
+                      hintText: 'جستجوی نام یا شماره تماس...',
+                      prefixIcon: const Icon(Icons.search, color: AppTheme.gold),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onChanged: (val) {
+                      final q = val.toLowerCase();
+                      setModalState(() {
+                        query = val;
+                        filtered = _customers.where((c) {
+                          return (c['name'] ?? '').toString().toLowerCase().contains(q) ||
+                              (c['phone'] ?? '').toString().contains(val);
+                        }).toList();
+                      });
+                    },
                   ),
-                  onChanged: (val) {
-                    setModalState(() {
-                      query = val;
-                      filtered = _customers.where((c) => (c['name'] ?? '').contains(val) || (c['phone'] ?? '').contains(val)).toList();
-                    });
-                  },
                 ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final c = filtered[index];
-                    return ListTile(
-                      leading: const CircleAvatar(backgroundColor: AppTheme.gold, child: Icon(Icons.person, color: Colors.black)),
-                      title: Text(c['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite)),
-                      subtitle: Text(c['phone'] ?? '', style: const TextStyle(color: AppTheme.textGrey)),
-                      onTap: () => Navigator.pop(ctx, c),
-                    );
-                  },
+                Expanded(
+                  child: filtered.isEmpty
+                      ? const Center(child: Text('مشتری‌ای یافت نشد', style: TextStyle(color: AppTheme.textGrey)))
+                      : ListView.builder(
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final c = filtered[index];
+                            return ListTile(
+                              leading: const CircleAvatar(backgroundColor: AppTheme.gold, child: Icon(Icons.person, color: Colors.black)),
+                              title: Text(c['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite)),
+                              subtitle: Text('${c['phone'] ?? ''} | کد ملی: ${c['national_id'] ?? '-'}', style: const TextStyle(color: AppTheme.textGrey)),
+                              onTap: () => Navigator.pop(ctx, c),
+                            );
+                          },
+                        ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Future<void> _addQuickCustomer(Function(Map<String, dynamic>) onAdded) async {
+  // افزودن مشتری سریع (به‌روزرسانی فوری لیست والد)
+  Future<Map<String, dynamic>?> _showQuickAddCustomer() async {
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
     final nationalIdController = TextEditingController();
@@ -103,61 +138,91 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
           backgroundColor: AppTheme.cardBlack,
           title: const Text('افزودن مشتری جدید', style: TextStyle(color: AppTheme.gold)),
           content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(controller: nameController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'نام و نام خانوادگی *', prefixIcon: Icon(Icons.person, color: AppTheme.gold))),
-              const SizedBox(height: 12),
-              TextField(controller: phoneController, keyboardType: TextInputType.phone, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'شماره تماس *', prefixIcon: Icon(Icons.phone, color: AppTheme.gold))),
-              const SizedBox(height: 12),
-              TextField(controller: nationalIdController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کد ملی', prefixIcon: Icon(Icons.badge, color: AppTheme.gold))),
-              const SizedBox(height: 12),
-              TextField(controller: addressController, maxLines: 2, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'آدرس', prefixIcon: Icon(Icons.location_on, color: AppTheme.gold))),
-            ]),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: nameController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'نام و نام خانوادگی *', prefixIcon: Icon(Icons.person, color: AppTheme.gold))),
+                const SizedBox(height: 12),
+                TextField(controller: phoneController, keyboardType: TextInputType.phone, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'شماره تماس *', prefixIcon: Icon(Icons.phone, color: AppTheme.gold))),
+                const SizedBox(height: 12),
+                TextField(controller: nationalIdController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کد ملی', prefixIcon: Icon(Icons.badge, color: AppTheme.gold))),
+                const SizedBox(height: 12),
+                TextField(controller: addressController, maxLines: 2, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'آدرس', prefixIcon: Icon(Icons.location_on, color: AppTheme.gold))),
+              ],
+            ),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('انصراف', style: TextStyle(color: AppTheme.textGrey))),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
               onPressed: () async {
-                if (nameController.text.isEmpty || phoneController.text.isEmpty) {
+                if (nameController.text.trim().isEmpty || phoneController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نام و شماره تماس الزامی است'), backgroundColor: Colors.red));
                   return;
                 }
-                final customerData = {'name': nameController.text.trim(), 'phone': phoneController.text.trim(), 'national_id': nationalIdController.text.trim(), 'address': addressController.text.trim()};
-                final id = await DatabaseHelper.instance.insertCustomer(customerData);
-                Navigator.pop(ctx, {'id': id, ...customerData});
+                final data = {
+                  'name': nameController.text.trim(),
+                  'phone': phoneController.text.trim(),
+                  'national_id': nationalIdController.text.trim(),
+                  'address': addressController.text.trim(),
+                };
+                final id = await DatabaseHelper.instance.insertCustomer(data);
+                Navigator.pop(ctx, {'id': id, ...data});
               },
-              child: const Text('افزودن', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text('ثبت مشتری', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
       ),
     );
+
     if (result != null) {
-      // آپدیت آنی لیست والد
-      setState(() => _customers.add(result));
-      onAdded(result);
+      final freshCustomers = await DatabaseHelper.instance.getAllCustomers();
+      if (mounted) {
+        setState(() => _customers = freshCustomers);
+      }
     }
+    return result;
   }
 
   Future<void> _showVehicleDialog({Map<String, dynamic>? veh}) async {
     final isEdit = veh != null;
+
     if (!isEdit) {
       final check = await LicenseManager.canAddVehicle();
-      if (!check['allowed']) {
-        if (mounted) showDialog(context: context, builder: (ctx) => Directionality(textDirection: TextDirection.rtl, child: AlertDialog(backgroundColor: AppTheme.cardBlack, title: const Row(children: [Icon(Icons.lock, color: Colors.red, size: 28), SizedBox(width: 8), Text('محدودیت پلن', style: TextStyle(color: Colors.red))]), content: Text(check['message'] ?? '', style: const TextStyle(color: AppTheme.textWhite)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('متوجه شدم', style: TextStyle(color: AppTheme.gold)))])));
+      if (check['allowed'] != true) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => Directionality(
+              textDirection: TextDirection.rtl,
+              child: AlertDialog(
+                backgroundColor: AppTheme.cardBlack,
+                title: const Row(children: [Icon(Icons.lock, color: Colors.red), SizedBox(width: 8), Text('محدودیت پلن', style: TextStyle(color: Colors.red))]),
+                content: Text(check['message'] ?? 'امکان ثبت خودرو جدید وجود ندارد', style: const TextStyle(color: AppTheme.textWhite)),
+                actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('متوجه شدم', style: TextStyle(color: AppTheme.gold)))],
+              ),
+            ),
+          );
+        }
         return;
       }
     }
-    
+
     final plateController = TextEditingController(text: veh?['plate_number']?.toString() ?? '');
     final brandController = TextEditingController(text: veh?['brand']?.toString() ?? '');
     final modelController = TextEditingController(text: veh?['model']?.toString() ?? '');
     final mileageController = TextEditingController(text: (veh?['current_mileage'] ?? 0).toString());
     final notesController = TextEditingController(text: veh?['notes']?.toString() ?? '');
+
     Map<String, dynamic>? selectedCustomer;
     if (veh?['customer_id'] != null) {
-      final match = _customers.where((c) => c['id'] == veh!['customer_id']).toList();
-      if (match.isNotEmpty) selectedCustomer = match.first;
+      for (final c in _customers) {
+        if (c['id'] == veh!['customer_id']) {
+          selectedCustomer = c;
+          break;
+        }
+      }
     }
 
     await showDialog(
@@ -169,67 +234,100 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             backgroundColor: AppTheme.cardBlack,
             title: Text(isEdit ? 'ویرایش خودرو' : 'افزودن خودرو', style: const TextStyle(color: AppTheme.gold)),
             content: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Row(
-                  children: [
-                    const Expanded(child: Text('مالک خودرو:', style: TextStyle(color: AppTheme.textGrey, fontSize: 13))),
-                    TextButton.icon(
-                      onPressed: () async {
-                        await _addQuickCustomer((newCustomer) {
-                          // آپدیت آنی داخل دیالوگ
-                          setStateDialog(() { selectedCustomer = newCustomer; });
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(child: Text('مالک خودرو:', style: TextStyle(color: AppTheme.textGrey, fontSize: 13))),
+                      TextButton.icon(
+                        onPressed: () async {
+                          final newCustomer = await _showQuickAddCustomer();
+                          if (newCustomer != null) {
+                            setStateDialog(() {
+                              selectedCustomer = newCustomer;
+                            });
+                          }
+                        },
+                        icon: const Icon(Icons.person_add, color: AppTheme.gold, size: 18),
+                        label: const Text('مشتری جدید', style: TextStyle(color: AppTheme.gold, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                  InkWell(
+                    onTap: () async {
+                      final selected = await _showSearchableCustomerList();
+                      if (selected != null) {
+                        setStateDialog(() {
+                          selectedCustomer = selected;
                         });
-                      },
-                      icon: const Icon(Icons.person_add, color: AppTheme.gold, size: 18),
-                      label: const Text('مشتری جدید', style: TextStyle(color: AppTheme.gold, fontSize: 12)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                InkWell(
-                  onTap: () async {
-                    final selected = await _showSearchableCustomerList();
-                    if (selected != null) {
-                      setStateDialog(() => selectedCustomer = selected);
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                    decoration: BoxDecoration(color: const Color(0xFF2A2A2A), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF444444))),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.person, color: AppTheme.gold),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(selectedCustomer != null ? '${selectedCustomer!['name']} - ${selectedCustomer!['phone']}' : 'انتخاب مالک (کلیک کنید)', style: TextStyle(color: selectedCustomer != null ? AppTheme.textWhite : AppTheme.textGrey))),
-                        const Icon(Icons.arrow_drop_down, color: AppTheme.gold),
-                      ],
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2A2A2A),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF444444)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.person, color: AppTheme.gold),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              selectedCustomer != null
+                                  ? '${selectedCustomer!['name']} - ${selectedCustomer!['phone']}'
+                                  : 'انتخاب مالک (کلیک کنید)',
+                              style: TextStyle(color: selectedCustomer != null ? AppTheme.textWhite : AppTheme.textGrey),
+                            ),
+                          ),
+                          const Icon(Icons.arrow_drop_down, color: AppTheme.gold),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(controller: plateController, textCapitalization: TextCapitalization.characters, style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold), decoration: const InputDecoration(labelText: 'شماره پلاک *', prefixIcon: Icon(Icons.directions_car, color: AppTheme.gold))),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(child: TextField(controller: brandController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'برند', prefixIcon: Icon(Icons.category, color: AppTheme.gold)))),
-                  const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: modelController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'مدل', prefixIcon: Icon(Icons.model_training, color: AppTheme.gold)))),
-                ]),
-                const SizedBox(height: 12),
-                TextField(controller: mileageController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کیلومتر فعلی', prefixIcon: Icon(Icons.speed, color: AppTheme.gold))),
-                const SizedBox(height: 12),
-                TextField(controller: notesController, maxLines: 2, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'یادداشت', prefixIcon: Icon(Icons.notes, color: AppTheme.gold))),
-              ]),
+                  const SizedBox(height: 12),
+                  TextField(controller: plateController, style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold), decoration: const InputDecoration(labelText: 'شماره پلاک *', prefixIcon: Icon(Icons.directions_car, color: AppTheme.gold))),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(child: TextField(controller: brandController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'برند', prefixIcon: Icon(Icons.category, color: AppTheme.gold)))),
+                      const SizedBox(width: 8),
+                      Expanded(child: TextField(controller: modelController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'مدل', prefixIcon: Icon(Icons.build, color: AppTheme.gold)))),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(controller: mileageController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کیلومتر فعلی', prefixIcon: Icon(Icons.speed, color: AppTheme.gold))),
+                  const SizedBox(height: 12),
+                  TextField(controller: notesController, maxLines: 2, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'یادداشت', prefixIcon: Icon(Icons.notes, color: AppTheme.gold))),
+                ],
+              ),
             ),
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف', style: TextStyle(color: AppTheme.textGrey))),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
                 onPressed: () async {
-                  if (plateController.text.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شماره پلاک الزامی است'), backgroundColor: Colors.red)); return; }
-                  final vehData = {'plate_number': plateController.text.trim().toUpperCase(), 'brand': brandController.text.trim(), 'model': modelController.text.trim(), 'customer_id': selectedCustomer?['id'], 'current_mileage': int.tryParse(toEnglishDigits(mileageController.text)) ?? 0, 'notes': notesController.text.trim()};
-                  if (isEdit) { await DatabaseHelper.instance.updateVehicle(veh!['id'], vehData); } 
-                  else { await DatabaseHelper.instance.insertVehicle(vehData); }
-                  Navigator.pop(ctx);
+                  if (plateController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شماره پلاک الزامی است'), backgroundColor: Colors.red));
+                    return;
+                  }
+                  final vehData = {
+                    'plate_number': plateController.text.trim(),
+                    'brand': brandController.text.trim(),
+                    'model': modelController.text.trim(),
+                    'customer_id': selectedCustomer?['id'],
+                    'current_mileage': int.tryParse(toEnglishDigits(mileageController.text)) ?? 0,
+                    'notes': notesController.text.trim(),
+                  };
+                  if (isEdit) {
+                    await DatabaseHelper.instance.updateVehicle(veh!['id'], vehData);
+                  } else {
+                    await DatabaseHelper.instance.insertVehicle(vehData);
+                  }
+                  if (ctx.mounted) Navigator.pop(ctx);
                   _loadData();
                 },
                 child: Text(isEdit ? 'ذخیره' : 'افزودن', style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -242,41 +340,107 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   }
 
   Future<void> _deleteVehicle(int id) async {
-    final confirm = await showDialog<bool>(context: context, builder: (ctx) => Directionality(textDirection: TextDirection.rtl, child: AlertDialog(backgroundColor: AppTheme.cardBlack, title: const Text('تایید حذف', style: TextStyle(color: AppTheme.gold)), content: const Text('آیا مطمئن هستید؟', style: TextStyle(color: AppTheme.textWhite)), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('انصراف')), TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف', style: TextStyle(color: Colors.red)))])));
-    if (confirm == true) { await DatabaseHelper.instance.deleteVehicle(id); _loadData(); }
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: AppTheme.cardBlack,
+          title: const Text('تایید حذف', style: TextStyle(color: AppTheme.gold)),
+          content: const Text('آیا از حذف این خودرو مطمئن هستید؟', style: TextStyle(color: AppTheme.textWhite)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('انصراف')),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('حذف', style: TextStyle(color: Colors.red))),
+          ],
+        ),
+      ),
+    );
+    if (confirm == true) {
+      await DatabaseHelper.instance.deleteVehicle(id);
+      _loadData();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundBlack,
-      appBar: AppBar(title: const Text('مدیریت خودروها'), centerTitle: true, actions: [
-        IconButton(icon: const Icon(Icons.refresh, color: AppTheme.gold), onPressed: _loadData),
-        IconButton(icon: const Icon(Icons.people, color: AppTheme.gold), onPressed: () async { await _addQuickCustomer((_) {}); }, tooltip: 'افزودن مشتری'),
-      ]),
+      appBar: AppBar(
+        title: const Text('مدیریت خودروها'),
+        centerTitle: true,
+        actions: [
+          IconButton(icon: const Icon(Icons.people, color: AppTheme.gold), tooltip: 'افزودن مشتری', onPressed: () async { await _showQuickAddCustomer(); }),
+          IconButton(icon: const Icon(Icons.refresh, color: AppTheme.gold), onPressed: _loadData),
+        ],
+      ),
       body: Column(
         children: [
-          Padding(padding: const EdgeInsets.all(12), child: TextField(controller: _searchController, textCapitalization: TextCapitalization.characters, style: const TextStyle(color: AppTheme.textWhite), decoration: InputDecoration(hintText: 'جستجو بر اساس پلاک، برند یا نام مشتری...', prefixIcon: const Icon(Icons.search, color: AppTheme.gold), suffixIcon: _searchController.text.isNotEmpty ? IconButton(icon: const Icon(Icons.clear, color: AppTheme.gold), onPressed: () { _searchController.clear(); _filterVehicles(''); }) : null, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), onChanged: _filterVehicles)),
-          Expanded(
-            child: _isLoading ? const Center(child: CircularProgressIndicator(color: AppTheme.gold)) : _filteredVehicles.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.directions_car, size: 80, color: AppTheme.textGrey), const SizedBox(height: 16), Text('خودرویی یافت نشد', style: TextStyle(fontSize: 18, color: AppTheme.textGrey))])) : ListView.builder(
-              padding: const EdgeInsets.all(12), itemCount: _filteredVehicles.length,
-              itemBuilder: (context, index) {
-                final v = _filteredVehicles[index];
-                return Card(margin: const EdgeInsets.only(bottom: 12), child: ListTile(
-                  leading: CircleAvatar(backgroundColor: AppTheme.oilBlue.withOpacity(0.2), child: const Icon(Icons.directions_car, color: AppTheme.oilBlue)),
-                  title: Text(v['plate_number'] ?? '', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold, fontFamily: 'monospace', fontSize: 16)),
-                  subtitle: Text('${v['brand'] ?? ''} ${v['model'] ?? ''} | ${formatNumber(v['current_mileage'] ?? 0)} کیلومتر\nمالک: ${v['customer_name'] ?? 'ثبت نشده'}', style: const TextStyle(color: AppTheme.textGrey)),
-                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                    IconButton(icon: const Icon(Icons.edit, color: AppTheme.gold), onPressed: () => _showVehicleDialog(veh: v)),
-                    IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteVehicle(v['id'])),
-                  ]),
-                ));
-              },
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextField(
+              controller: _searchController,
+              style: const TextStyle(color: AppTheme.textWhite),
+              decoration: InputDecoration(
+                hintText: 'جستجو بر اساس پلاک، برند یا نام مالک...',
+                prefixIcon: const Icon(Icons.search, color: AppTheme.gold),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(icon: const Icon(Icons.clear, color: AppTheme.gold), onPressed: () { _searchController.clear(); _filterVehicles(''); })
+                    : null,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onChanged: _filterVehicles,
             ),
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: AppTheme.gold))
+                : _filteredVehicles.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.directions_car, size: 80, color: AppTheme.textGrey),
+                            const SizedBox(height: 16),
+                            Text('خودرویی یافت نشد', style: TextStyle(fontSize: 18, color: AppTheme.textGrey)),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: _filteredVehicles.length,
+                        itemBuilder: (context, index) {
+                          final v = _filteredVehicles[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            child: ListTile(
+                              leading: CircleAvatar(backgroundColor: AppTheme.oilBlue.withOpacity(0.2), child: const Icon(Icons.directions_car, color: AppTheme.oilBlue)),
+                              title: Text(v['plate_number'] ?? '', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold, fontSize: 16)),
+                              subtitle: Text(
+                                '${v['brand'] ?? ''} ${v['model'] ?? ''} | ${formatNumber((v['current_mileage'] ?? 0).toInt())} کیلومتر\nمالک: ${v['customer_name'] ?? 'ثبت نشده'} | ${v['customer_phone'] ?? '-'}',
+                                style: const TextStyle(color: AppTheme.textGrey),
+                              ),
+                              isThreeLine: true,
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(icon: const Icon(Icons.edit, color: AppTheme.gold), onPressed: () => _showVehicleDialog(veh: v)),
+                                  IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteVehicle(v['id'])),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(onPressed: () => _showVehicleDialog(), backgroundColor: AppTheme.gold, foregroundColor: Colors.black, icon: const Icon(Icons.add), label: const Text('افزودن خودرو')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showVehicleDialog(),
+        backgroundColor: AppTheme.gold,
+        foregroundColor: Colors.black,
+        icon: const Icon(Icons.add),
+        label: const Text('افزودن خودرو'),
+      ),
     );
   }
 }
