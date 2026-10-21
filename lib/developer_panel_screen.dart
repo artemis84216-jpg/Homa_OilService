@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:persian_datetime_picker/persian_datetime_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'database_helper.dart';
 import 'license_helper.dart';
 import 'plans_management_screen.dart';
@@ -24,7 +25,21 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen> {
   Map<String, dynamic>? _selectedPlan;
   Jalali? _expiryDate;
   String? _generatedLicense;
-  final String _developerPassword = '2026';
+  String _developerPassword = '2026';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedPassword();
+  }
+
+  Future<void> _loadSavedPassword() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('developer_password');
+    if (saved != null && saved.isNotEmpty) {
+      setState(() => _developerPassword = saved);
+    }
+  }
 
   Future<void> _loadPlans() async {
     final data = await DatabaseHelper.instance.getAllPlans();
@@ -79,7 +94,10 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen> {
       'plan_name': _selectedPlan!['name'],
       'expiry_date': _formatJalali(_expiryDate),
     });
-    setState(() { _generatedLicense = license; _isLoading = false; });
+    setState(() {
+      _generatedLicense = license;
+      _isLoading = false;
+    });
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ لایسنس تولید و ذخیره شد'), backgroundColor: AppTheme.gold));
   }
 
@@ -104,6 +122,57 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen> {
       await LicenseHelper.clearLicense();
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ دیتابیس پاک شد'), backgroundColor: Colors.green));
     }
+  }
+
+  Future<void> _changeDeveloperPassword() async {
+    final currentController = TextEditingController();
+    final newController = TextEditingController();
+    final confirmController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: AppTheme.cardBlack,
+          title: const Text('تغییر رمز توسعه‌دهنده', style: TextStyle(color: AppTheme.gold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: currentController, obscureText: true, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'رمز فعلی', prefixIcon: Icon(Icons.lock_outline, color: AppTheme.gold))),
+                const SizedBox(height: 12),
+                TextField(controller: newController, obscureText: true, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'رمز جدید', prefixIcon: Icon(Icons.key, color: AppTheme.gold))),
+                const SizedBox(height: 12),
+                TextField(controller: confirmController, obscureText: true, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'تکرار رمز جدید', prefixIcon: Icon(Icons.key, color: AppTheme.gold))),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف', style: TextStyle(color: AppTheme.textGrey))),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
+              onPressed: () async {
+                if (currentController.text != _developerPassword) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('رمز فعلی اشتباه است'), backgroundColor: Colors.red));
+                  return;
+                }
+                if (newController.text != confirmController.text) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('رمز جدید و تکرار آن مطابقت ندارند'), backgroundColor: Colors.red));
+                  return;
+                }
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('developer_password', newController.text);
+                setState(() => _developerPassword = newController.text);
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ رمز توسعه‌دهنده تغییر کرد'), backgroundColor: Colors.green));
+              },
+              child: const Text('ذخیره', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -134,10 +203,10 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen> {
                 TextFormField(controller: _passwordController, obscureText: true, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'رمز عبور توسعه‌دهنده', prefixIcon: Icon(Icons.lock, color: AppTheme.gold))),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
-                  onPressed: _checkPassword, 
-                  icon: const Icon(Icons.login), 
+                  onPressed: _checkPassword,
+                  icon: const Icon(Icons.login),
                   label: const Text('ورود', style: TextStyle(fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black), // <-- رنگ طلایی اضافه شد
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
                 ),
               ] else ...[
                 const Text('۱. تولید کد لایسنس', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
@@ -151,7 +220,10 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen> {
                   dropdownColor: AppTheme.cardBlack,
                   decoration: const InputDecoration(labelText: 'انتخاب پلن', prefixIcon: Icon(Icons.subscriptions, color: AppTheme.gold)),
                   items: _plans.map((p) => DropdownMenuItem<Map<String, dynamic>>(value: p, child: Text(p['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite)))).toList(),
-                  onChanged: (val) { setState(() => _selectedPlan = val); _calculateExpiryDate(); },
+                  onChanged: (val) {
+                    setState(() => _selectedPlan = val);
+                    _calculateExpiryDate();
+                  },
                 ),
                 if (_selectedPlan != null) ...[
                   const SizedBox(height: 12),
@@ -182,7 +254,7 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen> {
                   onPressed: _isLoading ? null : _generateLicense,
                   icon: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) : const Icon(Icons.key),
                   label: const Text('تولید کد لایسنس', style: TextStyle(fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black), // <-- رنگ طلایی اضافه شد
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
                 ),
                 if (_generatedLicense != null) ...[
                   const SizedBox(height: 16),
@@ -195,10 +267,13 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen> {
                       SelectableText(_generatedLicense!, style: const TextStyle(color: AppTheme.textWhite, fontSize: 12, fontFamily: 'monospace')),
                       const SizedBox(height: 12),
                       ElevatedButton.icon(
-                        onPressed: () { Clipboard.setData(ClipboardData(text: _generatedLicense!)); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ کپی شد'))); }, 
-                        icon: const Icon(Icons.copy), 
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: _generatedLicense!));
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ کپی شد')));
+                        },
+                        icon: const Icon(Icons.copy),
                         label: const Text('کپی کد', style: TextStyle(fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black), // <-- رنگ طلایی اضافه شد
+                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
                       ),
                     ]),
                   ),
@@ -207,25 +282,32 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen> {
                 const Text('۲. مدیریت و سوابق', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
                 const SizedBox(height: 8),
                 ElevatedButton.icon(
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LicensesHistoryScreen())), 
-                  icon: const Icon(Icons.history), 
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LicensesHistoryScreen())),
+                  icon: const Icon(Icons.history),
                   label: const Text('سوابق لایسنس‌ها', style: TextStyle(fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black), // <-- رنگ طلایی اضافه شد
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
                 ),
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlansManagementScreen())), 
-                  icon: const Icon(Icons.settings), 
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlansManagementScreen())),
+                  icon: const Icon(Icons.settings),
                   label: const Text('مدیریت پلن‌ها', style: TextStyle(fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black), // <-- رنگ طلایی اضافه شد
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
                 ),
                 const Divider(color: AppTheme.gold, height: 40),
                 const Text('۳. ابزارهای توسعه‌دهنده', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
                 const SizedBox(height: 8),
                 ElevatedButton.icon(
-                  onPressed: _resetDatabase, 
-                  icon: const Icon(Icons.delete_forever), 
-                  label: const Text('پاک کردن دیتابیس', style: TextStyle(fontWeight: FontWeight.bold)), 
+                  onPressed: _changeDeveloperPassword,
+                  icon: const Icon(Icons.lock_reset),
+                  label: const Text('تغییر رمز توسعه‌دهنده', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: _resetDatabase,
+                  icon: const Icon(Icons.delete_forever),
+                  label: const Text('پاک کردن دیتابیس', style: TextStyle(fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
                 ),
               ],
