@@ -24,6 +24,9 @@ jobs:
           channel: 'stable'
           cache: true
       
+      - name: Install ImageMagick
+        run: sudo apt-get update && sudo apt-get install -y imagemagick
+      
       - name: Create android folder
         run: flutter create . --platforms android --project-name homa_oil_service --org com.homa
       
@@ -31,6 +34,21 @@ jobs:
         run: |
           sed -i 's/applicationId "com.example.homa_oil_service"/applicationId "com.homa.oil_service"/' android/app/build.gradle
           sed -i 's/android:label="homa_oil_service"/android:label="Homa OilService"/' android/app/src/main/AndroidManifest.xml
+      
+      - name: Generate Custom Gold Icon
+        run: |
+          for size_dir in "mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192"; do
+            dir=${size_dir%:*}
+            size=${size_dir#*:}
+            # پس‌زمینه مشکی
+            convert -size ${size}x${size} xc:'#121212' \
+              # دایره طلایی در مرکز
+              -fill '#FFD700' -draw "circle $((size/2)),$((size/2)) $((size/2)),$((size/3))" \
+              # قطره روغن (مثلث معکوس نرم) در مرکز دایره
+              -fill '#121212' -draw "path 'M $((size/2)),$((size/2.5)) Q $((size/2.3)),$((size/1.8)) $((size/2)),$((size/1.5)) Q $((size/1.7)),$((size/1.8)) $((size/2)),$((size/2.5))'" \
+              android/app/src/main/res/mipmap-$dir/ic_launcher.png
+            cp android/app/src/main/res/mipmap-$dir/ic_launcher.png android/app/src/main/res/mipmap-$dir/ic_launcher_round.png
+          done
       
       - name: Optimize Gradle Memory
         run: |
