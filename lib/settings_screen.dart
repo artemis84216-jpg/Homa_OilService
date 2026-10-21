@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:io';
 import 'database_helper.dart';
 import 'app_utils.dart';
 
@@ -28,25 +29,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     setState(() => _isLoading = true);
     try {
-      // بررسی رمز فعلی مدیر
-      final admin = await DatabaseHelper.instance.getAgentByCredentials('admin', _currentPassController.text);
-      // نکته: در این نسخه ساده، رمز مدیر در کد hardcode شده (admin/1234). 
-      // برای تغییر واقعی، باید جدول admins را آپدیت کنیم. اینجا فرض می‌کنیم رمز پیش‌فرض 1234 است.
+      // رمز پیش‌فرض مدیر: 1234
       if (_currentPassController.text != '1234') {
-         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('رمز فعلی اشتباه است'), backgroundColor: Colors.red));
-         setState(() => _isLoading = false);
-         return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('رمز فعلی اشتباه است (پیش‌فرض: 1234)'), backgroundColor: Colors.red));
+        setState(() => _isLoading = false);
+        return;
       }
 
-      // آپدیت رمز در دیتابیس (اگر رکورد admin وجود داشته باشد)
-      final allAgents = await DatabaseHelper.instance.getAllAgents();
-      final adminRecord = allAgents.firstWhere((a) => a['name'] == 'admin', orElse: () => {});
-      
-      if (adminRecord.isNotEmpty) {
-        await DatabaseHelper.instance.updateAgent(adminRecord['id'], {'password': _newPassController.text});
-      }
+      // ذخیره رمز جدید در SharedPreferences برای استفاده بعدی
+      final prefs = await _getPrefs();
+      await prefs.setString('admin_password', _newPassController.text);
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ رمز عبور با موفقیت تغییر کرد'), backgroundColor: Colors.green));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✓ رمز عبور با موفقیت تغییر کرد'), backgroundColor: Colors.green),
+      );
       _currentPassController.clear();
       _newPassController.clear();
       _confirmPassController.clear();
@@ -56,9 +52,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _isLoading = false);
   }
 
+  Future<dynamic> _getPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs;
+  }
+
   void _exitApp() {
-    // مورد ۵: خروج کامل از برنامه
-    SystemNavigator.pop();
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: AppTheme.cardBlack,
+          title: const Text('خروج از برنامه', style: TextStyle(color: AppTheme.gold)),
+          content: const Text('آیا مطمئن هستید که می‌خواهید از برنامه خارج شوید؟', style: TextStyle(color: AppTheme.textWhite)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                exit(0); // بستن کامل برنامه
+              },
+              child: const Text('بله، خارج شو', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -73,7 +93,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // بخش تغییر رمز
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -82,7 +101,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       const Row(children: [Icon(Icons.lock, color: AppTheme.gold), SizedBox(width: 8), Text('تغییر رمز عبور مدیر', style: TextStyle(color: AppTheme.gold, fontWeight: FontWeight.bold))]),
                       const SizedBox(height: 16),
-                      TextField(controller: _currentPassController, obscureText: true, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'رمز عبور فعلی', prefixIcon: Icon(Icons.lock_outline, color: AppTheme.gold))),
+                      TextField(controller: _currentPassController, obscureText: true, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'رمز عبور فعلی (پیش‌فرض: 1234)', prefixIcon: Icon(Icons.lock_outline, color: AppTheme.gold))),
                       const SizedBox(height: 12),
                       TextField(controller: _newPassController, obscureText: true, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'رمز عبور جدید', prefixIcon: Icon(Icons.key, color: AppTheme.gold))),
                       const SizedBox(height: 12),
@@ -91,9 +110,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       SizedBox(
                         height: 45,
                         child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
                           onPressed: _isLoading ? null : _changePassword,
                           icon: _isLoading ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) : const Icon(Icons.save),
-                          label: const Text('ذخیره رمز جدید'),
+                          label: const Text('ذخیره رمز جدید', style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],
@@ -101,8 +121,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              
-              // بخش خروج از برنامه
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -118,7 +136,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: ElevatedButton.icon(
                           onPressed: _exitApp,
                           icon: const Icon(Icons.exit_to_app),
-                          label: const Text('خروج کامل'),
+                          label: const Text('خروج کامل', style: TextStyle(fontWeight: FontWeight.bold)),
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
                         ),
                       ),
