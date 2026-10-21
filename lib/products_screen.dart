@@ -40,13 +40,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final nameController = TextEditingController(text: prod?['name']?.toString() ?? '');
     final brandController = TextEditingController(text: prod?['brand']?.toString() ?? '');
     
-    // جدا کردن عدد از واحد برای نمایش صحیح
     String rawVolume = prod?['volume']?.toString() ?? '';
     List<String> volumeParts = rawVolume.split(' ');
-    final volumeController = TextEditingController(text: volumeParts.isNotEmpty ? volumeParts[0] : '');
+    final qtyController = TextEditingController(text: volumeParts.isNotEmpty ? volumeParts[0] : '');
     String unit = volumeParts.length > 1 ? volumeParts[1] : 'لیتر';
     
-    // حذف ممیز از قیمت‌ها
     final costController = TextEditingController(text: (prod?['cost_price'] ?? 0).toInt().toString());
     final sellController = TextEditingController(text: (prod?['sell_price'] ?? 0).toInt().toString());
     
@@ -102,18 +100,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ]),
                   const SizedBox(height: 12),
                   Row(children: [
-                    Expanded(flex: 2, child: TextField(controller: volumeController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'مقدار (عدد)', prefixIcon: Icon(Icons.straighten, color: AppTheme.gold)))),
+                    Expanded(flex: 2, child: TextField(controller: qtyController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'مقدار', prefixIcon: Icon(Icons.straighten, color: AppTheme.gold)))),
                     const SizedBox(width: 8),
                     Expanded(child: DropdownButtonFormField<String>(value: unit, dropdownColor: AppTheme.cardBlack, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'واحد', prefixIcon: Icon(Icons.straighten, color: AppTheme.gold)), items: const [DropdownMenuItem(value: 'لیتر', child: Text('لیتر')), DropdownMenuItem(value: 'عدد', child: Text('عدد')), DropdownMenuItem(value: 'گالن', child: Text('گالن')), DropdownMenuItem(value: 'بسته', child: Text('بسته'))], onChanged: (v) => setStateDialog(() => unit = v!))),
                   ]),
                   const SizedBox(height: 12),
-                  // حذف ممیز با استفاده از CommaSeparatorFormatter و تبدیل به int
                   TextField(controller: costController, keyboardType: TextInputType.number, inputFormatters: [CommaSeparatorFormatter()], style: const TextStyle(color: AppTheme.textWhite, fontSize: 16), decoration: const InputDecoration(labelText: 'قیمت خرید (تومان)', prefixIcon: Icon(Icons.attach_money, color: AppTheme.gold), contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12))),
                   const SizedBox(height: 12),
                   TextField(controller: sellController, keyboardType: TextInputType.number, inputFormatters: [CommaSeparatorFormatter()], style: const TextStyle(color: AppTheme.textWhite, fontSize: 16), decoration: const InputDecoration(labelText: 'قیمت فروش (تومان)', prefixIcon: Icon(Icons.attach_money, color: AppTheme.gold), contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12))),
                   const SizedBox(height: 12),
-                  
-                  // منطق هوشمند موجودی انبار
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(color: AppTheme.gold.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.gold)),
@@ -126,7 +121,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         Icon(isEdit ? Icons.add_box : Icons.inventory, color: AppTheme.gold, size: 24),
                         const SizedBox(width: 12),
                         Expanded(child: TextField(
-                          controller: isEdit ? addStockController : volumeController, // در حالت جدید، volumeController همان موجودی اولیه است
+                          controller: isEdit ? addStockController : qtyController,
                           keyboardType: TextInputType.number, 
                           style: const TextStyle(color: AppTheme.textWhite, fontSize: 18, fontWeight: FontWeight.bold), 
                           decoration: InputDecoration(labelText: isEdit ? 'مقدار افزودنی به انبار' : 'موجودی اولیه انبار', border: InputBorder.none, contentPadding: EdgeInsets.zero)
@@ -142,15 +137,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
                   onPressed: () async {
                     if (nameController.text.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نام کالا الزامی است'), backgroundColor: Colors.red)); return; }
-                    
                     if (_isCustomCategory && _customCategoryController.text.trim().isNotEmpty) {
                       if (!_categories.contains(_customCategoryController.text.trim())) {
                         _categories.add(_customCategoryController.text.trim());
                         category = _customCategoryController.text.trim();
                       }
                     }
-
-                    // حذف ممیز و تبدیل به عدد صحیح
                     final cost = int.tryParse(toEnglishDigits(costController.text.replaceAll(',', ''))) ?? 0;
                     final sell = int.tryParse(toEnglishDigits(sellController.text.replaceAll(',', ''))) ?? 0;
                     
@@ -164,18 +156,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       final addAmount = int.tryParse(toEnglishDigits(addStockController.text)) ?? 0;
                       finalStock = currentStock + addAmount;
                     } else {
-                      finalStock = int.tryParse(toEnglishDigits(volumeController.text)) ?? 0;
+                      finalStock = int.tryParse(toEnglishDigits(qtyController.text)) ?? 0;
                     }
 
                     final prodData = {
-                      'name': nameController.text.trim(), 
-                      'category': category, 
-                      'brand': brandController.text.trim(), 
-                      'viscosity': viscosity, 
-                      'volume': '${volumeController.text.trim()} $unit', // ذخیره صحیح: مثلا "10 عدد"
-                      'cost_price': cost, 
-                      'sell_price': sell, 
-                      'stock_quantity': finalStock
+                      'name': nameController.text.trim(), 'category': category, 'brand': brandController.text.trim(), 
+                      'viscosity': viscosity, 'volume': '${qtyController.text.trim()} $unit', 
+                      'cost_price': cost, 'sell_price': sell, 'stock_quantity': finalStock
                     };
                     if (isEdit) { await DatabaseHelper.instance.updateProduct(prod!['id'], prodData); } 
                     else { await DatabaseHelper.instance.insertProduct(prodData); }
@@ -205,36 +192,4 @@ class _ProductsScreenState extends State<ProductsScreen> {
       body: Column(
         children: [
           Padding(padding: const EdgeInsets.all(12), child: Column(children: [
-            TextField(controller: _searchController, style: const TextStyle(color: AppTheme.textWhite), decoration: InputDecoration(hintText: 'جستجو در نام یا برند کالا...', prefixIcon: const Icon(Icons.search, color: AppTheme.gold), suffixIcon: _searchController.text.isNotEmpty ? IconButton(icon: const Icon(Icons.clear, color: AppTheme.gold), onPressed: () { _searchController.clear(); _filterProducts(); }) : null, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))), onChanged: (_) => _filterProducts()),
-            const SizedBox(height: 8),
-            SizedBox(height: 40, child: ListView(scrollDirection: Axis.horizontal, children: [_buildCategoryChip('همه'), ..._categories.map((c) => _buildCategoryChip(c))])),
-          ])),
-          Expanded(
-            child: _isLoading ? const Center(child: CircularProgressIndicator(color: AppTheme.gold)) : _filteredProducts.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.inventory_2, size: 80, color: AppTheme.textGrey), const SizedBox(height: 16), Text('کالایی یافت نشد', style: TextStyle(fontSize: 18, color: AppTheme.textGrey))])) : ListView.builder(
-              padding: const EdgeInsets.all(12), itemCount: _filteredProducts.length,
-              itemBuilder: (context, index) {
-                final p = _filteredProducts[index];
-                final isLowStock = (p['stock_quantity'] ?? 0) <= (p['min_stock'] ?? 5);
-                return Card(margin: const EdgeInsets.only(bottom: 12), child: ListTile(
-                  leading: CircleAvatar(backgroundColor: isLowStock ? Colors.red.withOpacity(0.2) : AppTheme.gold.withOpacity(0.2), child: Icon(isLowStock ? Icons.warning : Icons.inventory_2, color: isLowStock ? Colors.red : AppTheme.gold)),
-                  title: Text(p['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold)),
-                  subtitle: Text('${p['brand'] ?? ''} ${p['viscosity'] ?? ''} ${p['volume'] ?? ''}\nموجودی: ${formatNumber(p['stock_quantity'] ?? 0)} | فروش: ${formatPrice(p['sell_price'])} تومان', style: TextStyle(color: isLowStock ? Colors.red : AppTheme.textGrey)),
-                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                    IconButton(icon: const Icon(Icons.edit, color: AppTheme.gold), onPressed: () => _showProductDialog(prod: p)),
-                    IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteProduct(p['id'])),
-                  ]),
-                ));
-              },
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(onPressed: () => _showProductDialog(), backgroundColor: AppTheme.gold, foregroundColor: Colors.black, icon: const Icon(Icons.add), label: const Text('افزودن کالا')),
-    );
-  }
-
-  Widget _buildCategoryChip(String category) {
-    final isSelected = _selectedCategory == category;
-    return Padding(padding: const EdgeInsets.only(left: 8), child: FilterChip(label: Text(category, style: TextStyle(color: isSelected ? Colors.black : AppTheme.gold, fontSize: 12)), selected: isSelected, onSelected: (selected) { setState(() => _selectedCategory = category); _filterProducts(); }, selectedColor: AppTheme.gold, backgroundColor: AppTheme.cardBlack, checkmarkColor: Colors.black, side: const BorderSide(color: AppTheme.gold)));
-  }
-}
+            TextField(controller: _searchController, style: const TextStyle(color: AppTheme.textWhite), decoration: InputDecoration(hintText: 'جستجو در نام یا برند کالا...', prefixIcon: const Icon(Icons.search, color: AppTheme.gold), suffixIcon: _searchController.text.isNotEmpty ? IconButton(icon: const Icon(Icons.clear,
