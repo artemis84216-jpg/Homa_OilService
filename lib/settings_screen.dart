@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:io';
+import 'dart:io'; // <-- این خط برای بستن اجباری برنامه حیاتی است
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_utils.dart';
 
@@ -64,11 +64,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                // روش استاندارد و امن فلاتر برای بستن برنامه
-                SystemNavigator.pop();
-                
-                // اگر روش بالا در برخی گوشی‌ها جواب نداد، این خط برنامه را به زور می‌بندد:
-                // exit(0); 
+                // بستن اجباری و قطعی برنامه
+                exit(0);
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
               child: const Text('بله، خروج کامل', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -127,7 +124,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       const Row(children: [Icon(Icons.power_settings_new, color: Colors.red), SizedBox(width: 8), Text('خروج از برنامه', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))]),
                       const SizedBox(height: 12),
-                      const Text('با کلیک روی دکمه زیر، اپلیکیشن به طور کامل از حافظه موقت بسته می‌شود.', style: TextStyle(color: AppTheme.textGrey)),
+                      const Text('با کلیک روی دکمه زیر، اپلیکیشن به طور کامل و اجباری بسته می‌شود.', style: TextStyle(color: AppTheme.textGrey)),
                       const SizedBox(height: 16),
                       SizedBox(
                         height: 45,
