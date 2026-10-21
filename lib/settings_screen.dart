@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:io'; // <-- این خط برای بستن اجباری برنامه حیاتی است
+import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_utils.dart';
 
@@ -58,17 +58,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: AlertDialog(
           backgroundColor: AppTheme.cardBlack,
           title: const Text('خروج از برنامه', style: TextStyle(color: AppTheme.gold)),
-          content: const Text('آیا مطمئن هستید که می‌خواهید از برنامه خارج شوید؟', style: TextStyle(color: AppTheme.textWhite)),
+          content: const Text('آیا مطمئن هستید؟', style: TextStyle(color: AppTheme.textWhite)),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف', style: TextStyle(color: AppTheme.textGrey))),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(ctx);
-                // بستن اجباری و قطعی برنامه
+                // روش ۱: ارسال دستور مستقیم به سیستم‌عامل اندروید
+                await SystemChannels.system.sendMessage(const MethodCall('System.exitApplication'));
+                // روش ۲: بستن اجباری فرآیند
                 exit(0);
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-              child: const Text('بله، خروج کامل', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text('بله، خروج', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -124,7 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       const Row(children: [Icon(Icons.power_settings_new, color: Colors.red), SizedBox(width: 8), Text('خروج از برنامه', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))]),
                       const SizedBox(height: 12),
-                      const Text('با کلیک روی دکمه زیر، اپلیکیشن به طور کامل و اجباری بسته می‌شود.', style: TextStyle(color: AppTheme.textGrey)),
+                      const Text('برنامه به طور کامل بسته می‌شود.', style: TextStyle(color: AppTheme.textGrey)),
                       const SizedBox(height: 16),
                       SizedBox(
                         height: 45,
