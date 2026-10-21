@@ -133,7 +133,12 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen> {
               if (!_isAuthenticated) ...[
                 TextFormField(controller: _passwordController, obscureText: true, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'رمز عبور توسعه‌دهنده', prefixIcon: Icon(Icons.lock, color: AppTheme.gold))),
                 const SizedBox(height: 16),
-                ElevatedButton.icon(onPressed: _checkPassword, icon: const Icon(Icons.login), label: const Text('ورود')),
+                ElevatedButton.icon(
+                  onPressed: _checkPassword, 
+                  icon: const Icon(Icons.login), 
+                  label: const Text('ورود', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black), // <-- رنگ طلایی اضافه شد
+                ),
               ] else ...[
                 const Text('۱. تولید کد لایسنس', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
                 const SizedBox(height: 8),
@@ -176,7 +181,8 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen> {
                 ElevatedButton.icon(
                   onPressed: _isLoading ? null : _generateLicense,
                   icon: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) : const Icon(Icons.key),
-                  label: const Text('تولید کد لایسنس'),
+                  label: const Text('تولید کد لایسنس', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black), // <-- رنگ طلایی اضافه شد
                 ),
                 if (_generatedLicense != null) ...[
                   const SizedBox(height: 16),
@@ -188,20 +194,40 @@ class _DeveloperPanelScreenState extends State<DeveloperPanelScreen> {
                       const SizedBox(height: 8),
                       SelectableText(_generatedLicense!, style: const TextStyle(color: AppTheme.textWhite, fontSize: 12, fontFamily: 'monospace')),
                       const SizedBox(height: 12),
-                      ElevatedButton.icon(onPressed: () { Clipboard.setData(ClipboardData(text: _generatedLicense!)); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ کپی شد'))); }, icon: const Icon(Icons.copy), label: const Text('کپی کد')),
+                      ElevatedButton.icon(
+                        onPressed: () { Clipboard.setData(ClipboardData(text: _generatedLicense!)); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ کپی شد'))); }, 
+                        icon: const Icon(Icons.copy), 
+                        label: const Text('کپی کد', style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black), // <-- رنگ طلایی اضافه شد
+                      ),
                     ]),
                   ),
                 ],
                 const Divider(color: AppTheme.gold, height: 40),
                 const Text('۲. مدیریت و سوابق', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
                 const SizedBox(height: 8),
-                ElevatedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LicensesHistoryScreen())), icon: const Icon(Icons.history), label: const Text('سوابق لایسنس‌ها')),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LicensesHistoryScreen())), 
+                  icon: const Icon(Icons.history), 
+                  label: const Text('سوابق لایسنس‌ها', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black), // <-- رنگ طلایی اضافه شد
+                ),
                 const SizedBox(height: 12),
-                ElevatedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlansManagementScreen())), icon: const Icon(Icons.settings), label: const Text('مدیریت پلن‌ها')),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PlansManagementScreen())), 
+                  icon: const Icon(Icons.settings), 
+                  label: const Text('مدیریت پلن‌ها', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black), // <-- رنگ طلایی اضافه شد
+                ),
                 const Divider(color: AppTheme.gold, height: 40),
                 const Text('۳. ابزارهای توسعه‌دهنده', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
                 const SizedBox(height: 8),
-                ElevatedButton.icon(onPressed: _resetDatabase, icon: const Icon(Icons.delete_forever), label: const Text('پاک کردن دیتابیس'), style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white)),
+                ElevatedButton.icon(
+                  onPressed: _resetDatabase, 
+                  icon: const Icon(Icons.delete_forever), 
+                  label: const Text('پاک کردن دیتابیس', style: TextStyle(fontWeight: FontWeight.bold)), 
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                ),
               ],
             ],
           ),
