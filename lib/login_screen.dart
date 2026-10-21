@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'admin_dashboard.dart';
 import 'employee_dashboard.dart';
 import 'customer_dashboard.dart';
@@ -18,6 +19,21 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   String _selectedRole = 'admin';
   bool _isLoading = false;
+  String _adminPassword = '1234';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAdminPassword();
+  }
+
+  Future<void> _loadAdminPassword() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('admin_password');
+    if (saved != null && saved.isNotEmpty) {
+      setState(() => _adminPassword = saved);
+    }
+  }
 
   void _login() async {
     String user = _usernameController.text.trim();
@@ -31,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     if (_selectedRole == 'admin') {
-      if (user == 'admin' && pass == '1234') {
+      if (user == 'admin' && pass == _adminPassword) {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminDashboard()));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نام کاربری یا رمز عبور مدیر اشتباه است'), backgroundColor: Colors.red));
@@ -106,12 +122,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     onChanged: (v) => setState(() => _selectedRole = v!),
                   ),
                   const SizedBox(height: 24),
-                                    SizedBox(
+                  SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
                       onPressed: _isLoading ? null : _login,
-                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black), 
                       child: _isLoading
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
                           : const Text('ورود', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
