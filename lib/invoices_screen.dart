@@ -12,7 +12,9 @@ class InvoicesScreen extends StatefulWidget {
 
 class _InvoicesScreenState extends State<InvoicesScreen> {
   List<Map<String, dynamic>> _invoices = [];
+  List<Map<String, dynamic>> _filteredInvoices = [];
   bool _isLoading = true;
+  final _searchController = TextEditingController();
 
   @override
   void initState() { super.initState(); _loadInvoices(); }
@@ -20,15 +22,22 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   Future<void> _loadInvoices() async {
     setState(() => _isLoading = true);
     final data = await DatabaseHelper.instance.getAllInvoices();
-    setState(() { _invoices = data; _isLoading = false; });
+    setState(() { _invoices = data; _filteredInvoices = data; _isLoading = false; });
   }
 
-  Future<void> _createNewInvoice() async {
-    final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateInvoiceScreen()));
-    if (result == true) _loadInvoices();
+  void _filterInvoices(String query) {
+    setState(() {
+      if (query.isEmpty) { _filteredInvoices = _invoices; }
+      else {
+        _filteredInvoices = _invoices.where((inv) => 
+          (inv['invoice_number'] ?? '').toString().contains(query) ||
+          (inv['plate_number'] ?? '').toString().toLowerCase().contains(query.toLowerCase()) ||
+          (inv['customer_name'] ?? '').toString().toLowerCase().contains(query.toLowerCase())
+        ).toList();
+      }
+    });
   }
 
-  // مورد ۱۴: نمایش اقلام فاکتور با کلیک
   void _showInvoiceItems(Map<String, dynamic> inv) {
     List<dynamic> items = [];
     try { items = jsonDecode(inv['items_json'] ?? '[]'); } catch (e) {}
@@ -74,50 +83,71 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundBlack,
       appBar: AppBar(title: const Text('فاکتورها'), centerTitle: true, actions: [IconButton(icon: const Icon(Icons.refresh, color: AppTheme.gold), onPressed: _loadInvoices)]),
-      body: _isLoading ? const Center(child: CircularProgressIndicator(color: AppTheme.gold)) : _invoices.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.receipt_long, size: 80, color: AppTheme.textGrey), const SizedBox(height: 16), Text('هنوز فاکتوری ثبت نشده', style: TextStyle(fontSize: 18, color: AppTheme.textGrey))])) : ListView.builder(
-        padding: const EdgeInsets.all(12), itemCount: _invoices.length,
-        itemBuilder: (context, index) {
-          final inv = _invoices[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: InkWell(
-              onTap: () => _showInvoiceItems(inv), // مورد ۱۴
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: AppTheme.gold.withOpacity(0.2), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.gold)), child: Text('شماره: ${inv['invoice_number']}', style: const TextStyle(color: AppTheme.gold, fontWeight: FontWeight.bold, fontSize: 12))),
-                    const Spacer(),
-                    Text(inv['invoice_date'] ?? '', style: const TextStyle(color: AppTheme.textGrey, fontSize: 12)),
-                  ]),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    const Icon(Icons.directions_car, size: 16, color: AppTheme.oilBlue),
-                    const SizedBox(width: 4),
-                    Expanded(child: Text('${inv['plate_number'] ?? 'نامشخص'} | ${inv['brand'] ?? ''} ${inv['model'] ?? ''}', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold))),
-                  ]),
-                  const SizedBox(height: 6),
-                  Row(children: [
-                    const Icon(Icons.person, size: 16, color: AppTheme.textGrey),
-                    const SizedBox(width: 4),
-                    Text('مشتری: ${inv['customer_name'] ?? 'نامشخص'}', style: const TextStyle(color: AppTheme.textGrey)),
-                  ]),
-                  const Divider(color: AppTheme.gold, height: 20),
-                  Row(children: [
-                    const Icon(Icons.attach_money, size: 20, color: AppTheme.gold),
-                    const SizedBox(width: 8),
-                    Text('مبلغ کل: ${formatPrice(inv['total'])} تومان', style: const TextStyle(color: AppTheme.textYellow, fontWeight: FontWeight.bold, fontSize: 16)),
-                    const Spacer(),
-                    IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteInvoice(inv['id'])),
-                  ]),
-                ]),
+      body: Column(
+        children: [
+          // حل مورد ۷: جستجو در فاکتورها
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextField(
+              controller: _searchController,
+              style: const TextStyle(color: AppTheme.textWhite),
+              decoration: InputDecoration(
+                hintText: 'جستجو بر اساس شماره فاکتور، پلاک یا نام مشتری...',
+                prefixIcon: const Icon(Icons.search, color: AppTheme.gold),
+                suffixIcon: _searchController.text.isNotEmpty ? IconButton(icon: const Icon(Icons.clear, color: AppTheme.gold), onPressed: () { _searchController.clear(); _filterInvoices(''); }) : null,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
+              onChanged: _filterInvoices,
             ),
-          );
-        },
+          ),
+          Expanded(
+            child: _isLoading ? const Center(child: CircularProgressIndicator(color: AppTheme.gold)) : _filteredInvoices.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.receipt_long, size: 80, color: AppTheme.textGrey), const SizedBox(height: 16), Text('فاکتوری یافت نشد', style: TextStyle(fontSize: 18, color: AppTheme.textGrey))])) : ListView.builder(
+              padding: const EdgeInsets.all(12), itemCount: _filteredInvoices.length,
+              itemBuilder: (context, index) {
+                final inv = _filteredInvoices[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: InkWell(
+                    onTap: () => _showInvoiceItems(inv),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(children: [
+                          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: AppTheme.gold.withOpacity(0.2), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.gold)), child: Text('شماره: ${inv['invoice_number']}', style: const TextStyle(color: AppTheme.gold, fontWeight: FontWeight.bold, fontSize: 12))),
+                          const Spacer(),
+                          Text(inv['invoice_date'] ?? '', style: const TextStyle(color: AppTheme.textGrey, fontSize: 12)),
+                        ]),
+                        const SizedBox(height: 12),
+                        Row(children: [
+                          const Icon(Icons.directions_car, size: 16, color: AppTheme.oilBlue),
+                          const SizedBox(width: 4),
+                          Expanded(child: Text('${inv['plate_number'] ?? 'نامشخص'} | ${inv['brand'] ?? ''} ${inv['model'] ?? ''}', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold))),
+                        ]),
+                        const SizedBox(height: 6),
+                        Row(children: [
+                          const Icon(Icons.person, size: 16, color: AppTheme.textGrey),
+                          const SizedBox(width: 4),
+                          Text('مشتری: ${inv['customer_name'] ?? 'نامشخص'}', style: const TextStyle(color: AppTheme.textGrey)),
+                        ]),
+                        const Divider(color: AppTheme.gold, height: 20),
+                        Row(children: [
+                          const Icon(Icons.attach_money, size: 20, color: AppTheme.gold),
+                          const SizedBox(width: 8),
+                          Text('مبلغ کل: ${formatPrice(inv['total'])} تومان', style: const TextStyle(color: AppTheme.textYellow, fontWeight: FontWeight.bold, fontSize: 16)),
+                          const Spacer(),
+                          IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteInvoice(inv['id'])),
+                        ]),
+                      ]),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton.extended(onPressed: _createNewInvoice, backgroundColor: AppTheme.gold, foregroundColor: Colors.black, icon: const Icon(Icons.add), label: const Text('فاکتور جدید')),
+      floatingActionButton: FloatingActionButton.extended(onPressed: () async { final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateInvoiceScreen())); if (result == true) _loadInvoices(); }, backgroundColor: AppTheme.gold, foregroundColor: Colors.black, icon: const Icon(Icons.add), label: const Text('فاکتور جدید')),
     );
   }
 }
@@ -139,7 +169,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   Map<String, dynamic>? _selectedEmployee;
   Jalali _invoiceDate = Jalali.now();
   final _mileageController = TextEditingController();
-  final _nextMileageController = TextEditingController(); // مورد ۱۲
+  final _nextMileageController = TextEditingController();
   final _discountController = TextEditingController(text: '0');
   final _notesController = TextEditingController();
   
@@ -186,7 +216,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
   void _updateQuantity(int index, int newQty) { if (newQty < 1) return; setState(() => _invoiceItems[index]['quantity'] = newQty); }
 
   double get _subtotal => _invoiceItems.fold(0.0, (sum, item) => sum + (item['price'] * item['quantity']));
-  double get _discount => double.tryParse(toEnglishDigits(_discountController.text.replaceAll(',', ''))) ?? 0.0; // مورد ۱۵: اصلاح پارس کردن
+  double get _discount => double.tryParse(toEnglishDigits(_discountController.text.replaceAll(',', ''))) ?? 0.0;
   double get _total => _subtotal - _discount;
 
   Future<void> _saveInvoice() async {
@@ -197,12 +227,11 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
 
     setState(() => _isSaving = true);
     try {
-      final invoiceNumber = await generateDailyInvoiceNumber(); // مورد ۱۳
+      final invoiceNumber = await generateDailyInvoiceNumber();
       final dateStr = '${_invoiceDate.year}/${_invoiceDate.month.toString().padLeft(2, '0')}/${_invoiceDate.day.toString().padLeft(2, '0')}';
       final currentMileage = int.tryParse(toEnglishDigits(_mileageController.text)) ?? 0;
       final nextMileage = int.tryParse(toEnglishDigits(_nextMileageController.text)) ?? 0;
       
-      // ۱. ثبت فاکتور
       await DatabaseHelper.instance.insertInvoice({
         'invoice_number': invoiceNumber, 'vehicle_id': _selectedVehicle!['id'], 'customer_id': _selectedVehicle!['customer_id'],
         'employee_id': _selectedEmployee!['id'], 'invoice_date': dateStr, 'mileage_at_service': currentMileage,
@@ -210,7 +239,6 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
         'payment_method': 'cash', 'status': 'paid', 'notes': _notesController.text.trim(),
       });
 
-      // ۲. کاهش موجودی کالاها
       for (final item in _invoiceItems) {
         if (item['type'] == 'product') {
           final product = _products.firstWhere((p) => p['id'] == item['id']);
@@ -219,25 +247,27 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
         }
       }
 
-      // ۳. به‌روزرسانی کیلومتر خودرو
       if (currentMileage > 0) {
         await DatabaseHelper.instance.updateVehicle(_selectedVehicle!['id'], {'current_mileage': currentMileage, 'last_service_date': dateStr, 'last_service_mileage': currentMileage});
       }
 
-      // ۴. مورد ۱۶: ثبت در سوابق سرویس (اگر روغن یا سرویس مرتبط باشد)
       final hasOilService = _invoiceItems.any((i) => i['name'].toString().contains('روغن') || i['name'].toString().contains('فیلتر'));
       if (hasOilService) {
         final oilItem = _invoiceItems.firstWhere((i) => i['name'].toString().contains('روغن'), orElse: () => {'name': 'سرویس دوره'});
+        // حل مورد ۸: ذخیره تاریخ به صورت شمسی
+        final jalaliNow = Jalali.now();
+        final jalaliDateStr = '${jalaliNow.year}/${jalaliNow.month.toString().padLeft(2, '0')}/${jalaliNow.day.toString().padLeft(2, '0')}';
+        
         await DatabaseHelper.instance.insertServiceHistory({
           'vehicle_id': _selectedVehicle!['id'],
-          'invoice_id': null, // می‌توانید بعداً لینک کنید
+          'invoice_id': null,
           'service_type': 'تعویض روغن و سرویس',
           'oil_brand': oilItem['name'] ?? 'نامشخص',
           'oil_viscosity': '',
           'oil_volume': 0.0,
           'mileage': currentMileage,
           'next_service_mileage': nextMileage > 0 ? nextMileage : null,
-          'next_service_date': null,
+          'next_service_date': nextMileage > 0 ? jalaliDateStr : null,
           'technician_notes': _notesController.text.trim(),
         });
       }
@@ -273,9 +303,9 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
             ),
             const SizedBox(height: 16),
             Row(children: [
-              Expanded(child: TextField(controller: _mileageController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کیلومتر فعلی (هنگام سرویس)', prefixIcon: Icon(Icons.speed, color: AppTheme.gold)))), // مورد ۱۲
+              Expanded(child: TextField(controller: _mileageController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کیلومتر فعلی', prefixIcon: Icon(Icons.speed, color: AppTheme.gold)))),
               const SizedBox(width: 8),
-              Expanded(child: TextField(controller: _nextMileageController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کیلومتر سرویس بعدی', prefixIcon: Icon(Icons.next_plan, color: AppTheme.gold)))), // مورد ۱۲
+              Expanded(child: TextField(controller: _nextMileageController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'کیلومتر سرویس بعدی', prefixIcon: Icon(Icons.next_plan, color: AppTheme.gold)))),
             ]),
             const SizedBox(height: 16),
             const Text('۲. تکنسین', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.gold)),
@@ -320,7 +350,15 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                 ])));
               }),
               const SizedBox(height: 16),
-              TextField(controller: _discountController, keyboardType: TextInputType.number, inputFormatters: [CommaSeparatorFormatter()], style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'تخفیف (تومان)', prefixIcon: Icon(Icons.discount, color: AppTheme.gold))), // مورد ۹
+              // حل مورد ۶: اضافه کردن onChanged برای آپدیت آنی مبلغ نهایی
+              TextField(
+                controller: _discountController, 
+                keyboardType: TextInputType.number, 
+                inputFormatters: [CommaSeparatorFormatter()], 
+                style: const TextStyle(color: AppTheme.textWhite), 
+                decoration: const InputDecoration(labelText: 'تخفیف (تومان)', prefixIcon: Icon(Icons.discount, color: AppTheme.gold)),
+                onChanged: (_) => setState(() {}), // <-- این خط باعث آپدیت آنی می‌شود
+              ),
               const SizedBox(height: 16),
               TextField(controller: _notesController, maxLines: 2, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'یادداشت', prefixIcon: Icon(Icons.notes, color: AppTheme.gold))),
               const SizedBox(height: 16),
@@ -332,7 +370,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
                 Row(children: [const Text('مبلغ نهایی:', style: TextStyle(color: AppTheme.gold, fontWeight: FontWeight.bold, fontSize: 18)), const Spacer(), Text('${formatPrice(_total)} تومان', style: const TextStyle(color: AppTheme.textYellow, fontWeight: FontWeight.bold, fontSize: 20))]),
               ])),
               const SizedBox(height: 24),
-              SizedBox(height: 55, child: ElevatedButton.icon(onPressed: _isSaving ? null : _saveInvoice, icon: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) : const Icon(Icons.check_circle, size: 24), label: Text(_isSaving ? 'در حال ثبت...' : 'ثبت فاکتور', style: const TextStyle(fontSize: 18)))),
+              SizedBox(height: 55, child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black), onPressed: _isSaving ? null : _saveInvoice, icon: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) : const Icon(Icons.check_circle, size: 24), label: Text(_isSaving ? 'در حال ثبت...' : 'ثبت فاکتور', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)))),
             ] else Container(padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: AppTheme.cardBlack, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppTheme.gold.withOpacity(0.3))), child: const Center(child: Text('از بخش کالاها و خدمات بالا، آیتم‌ها را اضافه کنید', style: TextStyle(color: AppTheme.textGrey)))),
           ]),
         ),
