@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
-import 'database_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'app_utils.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -29,15 +29,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     setState(() => _isLoading = true);
     try {
-      // رمز پیش‌فرض مدیر: 1234
       if (_currentPassController.text != '1234') {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('رمز فعلی اشتباه است (پیش‌فرض: 1234)'), backgroundColor: Colors.red));
         setState(() => _isLoading = false);
         return;
       }
 
-      // ذخیره رمز جدید در SharedPreferences برای استفاده بعدی
-      final prefs = await _getPrefs();
+      final prefs = await SharedPreferences.getInstance();
       await prefs.setString('admin_password', _newPassController.text);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -52,11 +50,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _isLoading = false);
   }
 
-  Future<dynamic> _getPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs;
-  }
-
   void _exitApp() {
     showDialog(
       context: context,
@@ -67,13 +60,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: const Text('خروج از برنامه', style: TextStyle(color: AppTheme.gold)),
           content: const Text('آیا مطمئن هستید که می‌خواهید از برنامه خارج شوید؟', style: TextStyle(color: AppTheme.textWhite)),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
-            TextButton(
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف', style: TextStyle(color: AppTheme.textGrey))),
+            ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                exit(0); // بستن کامل برنامه
+                // روش استاندارد و امن فلاتر برای بستن برنامه
+                SystemNavigator.pop();
+                
+                // اگر روش بالا در برخی گوشی‌ها جواب نداد، این خط برنامه را به زور می‌بندد:
+                // exit(0); 
               },
-              child: const Text('بله، خارج شو', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              child: const Text('بله، خروج کامل', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -129,7 +127,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       const Row(children: [Icon(Icons.power_settings_new, color: Colors.red), SizedBox(width: 8), Text('خروج از برنامه', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))]),
                       const SizedBox(height: 12),
-                      const Text('با کلیک روی دکمه زیر، اپلیکیشن به طور کامل بسته می‌شود.', style: TextStyle(color: AppTheme.textGrey)),
+                      const Text('با کلیک روی دکمه زیر، اپلیکیشن به طور کامل از حافظه موقت بسته می‌شود.', style: TextStyle(color: AppTheme.textGrey)),
                       const SizedBox(height: 16),
                       SizedBox(
                         height: 45,
