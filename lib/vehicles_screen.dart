@@ -33,6 +33,63 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     });
   }
 
+  // تابع کمکی برای نمایش لیست کشویی قابل جستجو (حل مورد ۴)
+  Future<Map<String, dynamic>?> _showSearchableCustomerList() async {
+    String query = '';
+    List<Map<String, dynamic>> filtered = List.from(_customers);
+    
+    return await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      backgroundColor: AppTheme.cardBlack,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: TextField(
+                  autofocus: true,
+                  style: const TextStyle(color: AppTheme.textWhite),
+                  decoration: InputDecoration(
+                    hintText: 'جستجوی نام یا شماره تماس...',
+                    prefixIcon: const Icon(Icons.search, color: AppTheme.gold),
+                    suffixIcon: IconButton(icon: const Icon(Icons.clear, color: AppTheme.gold), onPressed: () {
+                      setModalState(() { query = ''; filtered = List.from(_customers); });
+                    }),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onChanged: (val) {
+                    setModalState(() {
+                      query = val;
+                      filtered = _customers.where((c) => (c['name'] ?? '').contains(val) || (c['phone'] ?? '').contains(val)).toList();
+                    });
+                  },
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final c = filtered[index];
+                    return ListTile(
+                      leading: const CircleAvatar(backgroundColor: AppTheme.gold, child: Icon(Icons.person, color: Colors.black)),
+                      title: Text(c['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite)),
+                      subtitle: Text(c['phone'] ?? '', style: const TextStyle(color: AppTheme.textGrey)),
+                      onTap: () => Navigator.pop(ctx, c),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _addQuickCustomer(Function(Map<String, dynamic>) onAdded) async {
     final nameController = TextEditingController();
     final phoneController = TextEditingController();
@@ -60,6 +117,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('انصراف', style: TextStyle(color: AppTheme.textGrey))),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
               onPressed: () async {
                 if (nameController.text.isEmpty || phoneController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نام و شماره تماس الزامی است'), backgroundColor: Colors.red));
@@ -69,15 +127,16 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 final id = await DatabaseHelper.instance.insertCustomer(customerData);
                 Navigator.pop(ctx, {'id': id, ...customerData});
               },
-              child: const Text('افزودن'),
+              child: const Text('افزودن', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
       ),
     );
     if (result != null) {
+      // حل مورد ۳: آپدیت آنی لیست والد و دیالوگ
       setState(() => _customers.add(result));
-      onAdded(result); // فراخوانی کال‌بک برای به‌روزرسانی دیالوگ والد
+      onAdded(result);
     }
   }
 
@@ -127,15 +186,27 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                if (_customers.isEmpty)
-                  Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange.withOpacity(0.5))), child: const Row(children: [Icon(Icons.info_outline, color: Colors.orange, size: 18), SizedBox(width: 8), Expanded(child: Text('هنوز مشتری‌ای ثبت نشده. روی "مشتری جدید" کلیک کنید.', style: TextStyle(color: Colors.orange, fontSize: 12)))]))
-                else
-                  DropdownButtonFormField<Map<String, dynamic>>(
-                    value: selectedCustomer, dropdownColor: AppTheme.cardBlack, isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'انتخاب مالک', prefixIcon: Icon(Icons.person, color: AppTheme.gold)),
-                    items: _customers.map((c) => DropdownMenuItem<Map<String, dynamic>>(value: c, child: Text('${c['name']} - ${c['phone']}', style: const TextStyle(color: AppTheme.textWhite), overflow: TextOverflow.ellipsis))).toList(),
-                    onChanged: (val) => setStateDialog(() => selectedCustomer = val),
+                // حل مورد ۴: استفاده از لیست قابل جستجو به جای Dropdown معمولی
+                InkWell(
+                  onTap: () async {
+                    final selected = await _showSearchableCustomerList();
+                    if (selected != null) {
+                      setStateDialog(() => selectedCustomer = selected);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                    decoration: BoxDecoration(color: const Color(0xFF2A2A2A), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF444444))),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person, color: AppTheme.gold),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(selectedCustomer != null ? '${selectedCustomer!['name']} - ${selectedCustomer!['phone']}' : 'انتخاب مالک (کلیک کنید)', style: TextStyle(color: selectedCustomer != null ? AppTheme.textWhite : AppTheme.textGrey))),
+                        const Icon(Icons.arrow_drop_down, color: AppTheme.gold),
+                      ],
+                    ),
                   ),
+                ),
                 const SizedBox(height: 12),
                 TextField(controller: plateController, textCapitalization: TextCapitalization.characters, style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold), decoration: const InputDecoration(labelText: 'شماره پلاک *', prefixIcon: Icon(Icons.directions_car, color: AppTheme.gold))),
                 const SizedBox(height: 12),
@@ -153,6 +224,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف', style: TextStyle(color: AppTheme.textGrey))),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
                 onPressed: () async {
                   if (plateController.text.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شماره پلاک الزامی است'), backgroundColor: Colors.red)); return; }
                   final vehData = {'plate_number': plateController.text.trim().toUpperCase(), 'brand': brandController.text.trim(), 'model': modelController.text.trim(), 'customer_id': selectedCustomer?['id'], 'current_mileage': int.tryParse(toEnglishDigits(mileageController.text)) ?? 0, 'notes': notesController.text.trim()};
@@ -161,7 +233,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   Navigator.pop(ctx);
                   _loadData();
                 },
-                child: Text(isEdit ? 'ذخیره' : 'افزودن'),
+                child: Text(isEdit ? 'ذخیره' : 'افزودن', style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
