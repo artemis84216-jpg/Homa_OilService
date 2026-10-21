@@ -106,14 +106,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     onChanged: (v) => setState(() => _selectedRole = v!),
                   ),
                   const SizedBox(height: 24),
-                  SizedBox(
+                                    SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _login,
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black), 
                       child: _isLoading
                           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
-                          : const Text('ورود', style: TextStyle(fontSize: 18)),
+                          : const Text('ورود', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(height: 12),
