@@ -15,6 +15,7 @@ import 'reports_screen.dart';
 import 'about_screen.dart';
 import 'app_utils.dart';
 import 'customers_screen.dart';
+import 'expenses_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -174,6 +175,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 _buildCard(context, Icons.history, 'سوابق سرویس', AppTheme.gold, () => _navigateTo(const ServiceHistoryScreen(), 'سوابق سرویس')),
                 _buildCard(context, Icons.bar_chart, 'گزارشات', AppTheme.gold, () => _navigateTo(const ReportsScreen(), 'گزارشات')),
                 _buildCard(context, Icons.people, 'مشتریان', AppTheme.gold, () => _navigateTo(const CustomersScreen(), 'مشتریان')),
+                _buildCard(context, Icons.receipt_long, 'هزینه‌ها', AppTheme.gold, () => _navigateTo(const ExpensesScreen(), 'هزینه‌ها')),
                 _buildCard(context, Icons.info, 'درباره ما', AppTheme.gold, () => _navigateTo(const AboutScreen(), 'درباره ما')),
               ],
             ),
