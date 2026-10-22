@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:persian_datetime_picker/persian_datetime_picker.dart'; // <-- این خط اضافه شد
+import 'package:persian_datetime_picker/persian_datetime_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'database_helper.dart';
 import 'device_info_helper.dart';
 import 'license_helper.dart';
@@ -14,10 +15,12 @@ class LicenseInputScreen extends StatefulWidget {
 
 class _LicenseInputScreenState extends State<LicenseInputScreen> {
   final _licenseController = TextEditingController();
+  final _shopNameController = TextEditingController();
   bool _isLoading = false;
   String _deviceId = 'در حال دریافت...';
   Map<String, dynamic>? _currentLicense;
   String _currentPlanName = 'بدون لایسنس';
+  String _currentShopName = '';
 
   @override
   void initState() {
@@ -28,13 +31,22 @@ class _LicenseInputScreenState extends State<LicenseInputScreen> {
   Future<void> _loadData() async {
     final id = await DeviceInfoHelper.instance.getDeviceId();
     final license = await LicenseHelper.getLicense();
+    final prefs = await SharedPreferences.getInstance();
+    final savedShopName = prefs.getString('shop_name') ?? '';
+    
     String planName = 'بدون لایسنس';
     if (license != null && license['isActive'] == true) {
       final plans = await DatabaseHelper.instance.getAllPlans();
       final plan = plans.firstWhere((p) => p['id'] == license['planId'], orElse: () => {});
       if (plan.isNotEmpty) planName = plan['name'] ?? 'پلن نامشخص';
     }
-    setState(() { _deviceId = id; _currentLicense = license; _currentPlanName = planName; });
+    setState(() { 
+      _deviceId = id; 
+      _currentLicense = license; 
+      _currentPlanName = planName;
+      _currentShopName = savedShopName;
+      _shopNameController.text = savedShopName;
+    });
   }
 
   Future<void> _activateLicense() async {
@@ -42,6 +54,11 @@ class _LicenseInputScreenState extends State<LicenseInputScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('کد لایسنس را وارد کنید'), backgroundColor: Colors.red));
       return;
     }
+    if (_shopNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نام مرکز تعویض روغنی را وارد کنید'), backgroundColor: Colors.red));
+      return;
+    }
+    
     setState(() => _isLoading = true);
     final result = LicenseHelper.validateLicense(_licenseController.text.trim(), _deviceId);
     if (result == null || result.containsKey('error')) {
@@ -65,6 +82,7 @@ class _LicenseInputScreenState extends State<LicenseInputScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('پلن یافت نشد'), backgroundColor: Colors.red));
       return;
     }
+    
     int bonusDays = 0;
     if (_currentLicense != null && _currentLicense!['isActive'] == true) {
       bonusDays = _currentLicense!['daysRemaining'] ?? 0;
@@ -72,6 +90,11 @@ class _LicenseInputScreenState extends State<LicenseInputScreen> {
     Jalali finalExpiry = result['expiryJalali'];
     if (bonusDays > 0) finalExpiry = finalExpiry.addDays(bonusDays);
     await LicenseHelper.saveLicense(_licenseController.text.trim(), result['planId'], finalExpiry);
+    
+    // ذخیره نام مرکز در SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('shop_name', _shopNameController.text.trim());
+    
     setState(() => _isLoading = false);
     final isUpgrade = _currentLicense != null && _currentLicense!['isActive'] == true;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -100,9 +123,10 @@ class _LicenseInputScreenState extends State<LicenseInputScreen> {
                 const SizedBox(height: 8),
                 if (hasActiveLicense) ...[
                   Text('پلن فعلی: $_currentPlanName', style: const TextStyle(color: AppTheme.textWhite)),
+                  Text('نام مرکز: $_currentShopName', style: const TextStyle(color: AppTheme.textWhite)),
                   Text('روزهای باقی‌مانده: ${toPersianDigits((_currentLicense!['daysRemaining']).toString())}', style: const TextStyle(color: AppTheme.textWhite)),
                 ] else
-                  const Text('برای استفاده از اپ، کد لایسنس را وارد کنید.', style: TextStyle(color: Colors.orange, fontSize: 13)),
+                  const Text('برای استفاده از اپ، کد لایسنس و نام مرکز را وارد کنید.', style: TextStyle(color: Colors.orange, fontSize: 13)),
               ]),
             ),
             const SizedBox(height: 24),
@@ -116,6 +140,16 @@ class _LicenseInputScreenState extends State<LicenseInputScreen> {
               ]),
             ),
             const SizedBox(height: 24),
+            TextField(
+              controller: _shopNameController,
+              style: const TextStyle(color: AppTheme.textWhite),
+              decoration: const InputDecoration(
+                labelText: 'نام مرکز تعویض روغنی',
+                hintText: 'مثال: تعویض روغنی هما',
+                prefixIcon: Icon(Icons.business, color: AppTheme.gold),
+              ),
+            ),
+            const SizedBox(height: 16),
             TextFormField(controller: _licenseController, style: const TextStyle(color: AppTheme.textWhite, fontFamily: 'monospace', fontSize: 12), maxLines: 4, decoration: const InputDecoration(labelText: 'کد لایسنس', prefixIcon: Icon(Icons.key, color: AppTheme.gold), alignLabelWithHint: true)),
             const SizedBox(height: 24),
             SizedBox(
