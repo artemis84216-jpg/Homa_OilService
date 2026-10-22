@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:io';
+import 'package:flutter_exit_app/flutter_exit_app.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_utils.dart';
 
@@ -58,19 +58,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: AlertDialog(
           backgroundColor: AppTheme.cardBlack,
           title: const Text('خروج از برنامه', style: TextStyle(color: AppTheme.gold)),
-          content: const Text('آیا مطمئن هستید؟', style: TextStyle(color: AppTheme.textWhite)),
+          content: const Text('آیا مطمئن هستید که می‌خواهید از برنامه خارج شوید؟', style: TextStyle(color: AppTheme.textWhite)),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف', style: TextStyle(color: AppTheme.textGrey))),
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(ctx);
-                // روش ۱: ارسال دستور مستقیم به سیستم‌عامل اندروید
-                await SystemChannels.system.sendMessage(const MethodCall('System.exitApplication'));
-                // روش ۲: بستن اجباری فرآیند
-                exit(0);
+                // استفاده از پکیج تخصصی برای بستن قطعی برنامه
+                await FlutterExitApp.exitApp();
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-              child: const Text('بله، خروج', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text('بله، خروج کامل', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
