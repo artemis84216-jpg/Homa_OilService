@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'customer_search_screen.dart';
 import 'service_history_screen.dart';
 import 'app_utils.dart';
 
@@ -53,9 +52,6 @@ class CustomerDashboard extends StatelessWidget {
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
                 children: [
-                  _buildCard(context, Icons.search, 'جستجوی ملک/خدمات', () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomerSearchScreen()));
-                  }),
                   _buildCard(context, Icons.history, 'سوابق سرویس', () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const ServiceHistoryScreen()));
                   }),
@@ -64,6 +60,9 @@ class CustomerDashboard extends StatelessWidget {
                   }),
                   _buildCard(context, Icons.phone, 'تماس با ما', () {
                     _showContact(context);
+                  }),
+                  _buildCard(context, Icons.help, 'پشتیبانی', () {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('این بخش به زودی اضافه می‌شود'), backgroundColor: AppTheme.gold));
                   }),
                 ],
               ),
