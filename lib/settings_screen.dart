@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_exit_app/flutter_exit_app.dart';
+import 'package:android_intent_plus/android_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_utils.dart';
 
@@ -64,8 +64,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(ctx);
-                // استفاده از پکیج تخصصی برای بستن قطعی برنامه
-                await FlutterExitApp.exitApp();
+                // ارسال دستور مستقیم به سیستم‌عامل اندروید برای بستن برنامه
+                final AndroidIntent intent = AndroidIntent(
+                  action: 'action_view',
+                  data: 'app://exit',
+                );
+                await intent.launch();
+                
+                // اگر روش بالا جواب نداد، این خط برنامه را به زور می‌بندد
+                await Future.delayed(const Duration(milliseconds: 500));
+                SystemNavigator.pop();
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
               child: const Text('بله، خروج کامل', style: TextStyle(fontWeight: FontWeight.bold)),
