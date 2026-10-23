@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:persian_datetime_picker/persian_datetime_picker.dart';
 import 'database_helper.dart';
 import 'app_utils.dart';
 
@@ -53,13 +54,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
     
     String rawVolume = prod?['volume']?.toString() ?? '';
     List<String> volumeParts = rawVolume.split(' ');
-    final qtyController = TextEditingController(text: volumeParts.isNotEmpty ? volumeParts[0] : '');
+    final qtyController = TextEditingController(text: volumeParts.isNotEmpty ? volumeParts[0] : '0');
     String unit = volumeParts.length > 1 ? volumeParts[1] : 'لیتر';
     
     final costController = TextEditingController(text: (prod?['cost_price'] ?? 0).toInt().toString());
     final sellController = TextEditingController(text: (prod?['sell_price'] ?? 0).toInt().toString());
     
     final currentStock = prod?['stock_quantity'] ?? 0;
+    // کنترلر جداگانه برای حالت ویرایش (فقط مقدار افزودنی)
     final addStockController = TextEditingController(text: '0'); 
     
     String category = prod?['category']?.toString() ?? _categories.first;
@@ -76,7 +78,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             final isOil = category.contains('روغن');
             return AlertDialog(
               backgroundColor: AppTheme.cardBlack,
-              title: Text(isEdit ? 'ویرایش / افزایش موجودی' : 'ثبت کالای جدید (موجودی اولیه)', style: const TextStyle(color: AppTheme.gold)),
+              title: Text(isEdit ? 'ویرایش / افزایش موجودی' : 'ثبت کالای جدید', style: const TextStyle(color: AppTheme.gold)),
               content: SingleChildScrollView(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   TextField(controller: nameController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'نام کالا', prefixIcon: Icon(Icons.inventory_2, color: AppTheme.gold))),
@@ -111,7 +113,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ]),
                   const SizedBox(height: 12),
                   Row(children: [
-                    Expanded(flex: 2, child: TextField(controller: qtyController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'مقدار', prefixIcon: Icon(Icons.straighten, color: AppTheme.gold)))),
+                    Expanded(flex: 2, child: TextField(controller: qtyController, keyboardType: TextInputType.number, inputFormatters: [CommaSeparatorFormatter()], style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'مقدار در هر بسته', prefixIcon: Icon(Icons.straighten, color: AppTheme.gold)))),
                     const SizedBox(width: 8),
                     Expanded(child: DropdownButtonFormField<String>(value: unit, dropdownColor: AppTheme.cardBlack, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'واحد', prefixIcon: Icon(Icons.straighten, color: AppTheme.gold)), items: const [DropdownMenuItem(value: 'لیتر', child: Text('لیتر')), DropdownMenuItem(value: 'عدد', child: Text('عدد')), DropdownMenuItem(value: 'گالن', child: Text('گالن')), DropdownMenuItem(value: 'بسته', child: Text('بسته'))], onChanged: (v) => setStateDialog(() => unit = v!))),
                   ]),
@@ -120,6 +122,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   const SizedBox(height: 12),
                   TextField(controller: sellController, keyboardType: TextInputType.number, inputFormatters: [CommaSeparatorFormatter()], style: const TextStyle(color: AppTheme.textWhite, fontSize: 16), decoration: const InputDecoration(labelText: 'قیمت فروش (تومان)', prefixIcon: Icon(Icons.attach_money, color: AppTheme.gold), contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12))),
                   const SizedBox(height: 12),
+                  
+                  // منطق هوشمند و شفاف موجودی انبار
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(color: AppTheme.gold.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.gold)),
@@ -127,17 +131,34 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       if (isEdit) ...[
                         Text('موجودی فعلی انبار: ${formatNumber(currentStock)}', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 8),
+                        Row(children: [
+                          const Icon(Icons.add_box, color: AppTheme.gold, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: addStockController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [CommaSeparatorFormatter()],
+                              style: const TextStyle(color: AppTheme.textWhite, fontSize: 18, fontWeight: FontWeight.bold), 
+                              decoration: const InputDecoration(labelText: 'مقدار افزودنی به انبار', border: InputBorder.none, contentPadding: EdgeInsets.zero)
+                            )
+                          ),
+                        ]),
+                      ] else ...[
+                        Row(children: [
+                          const Icon(Icons.inventory, color: AppTheme.gold, size: 24),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: qtyController, // در حالت جدید، همین فیلد به عنوان موجودی اولیه استفاده می‌شود
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [CommaSeparatorFormatter()],
+                              style: const TextStyle(color: AppTheme.textWhite, fontSize: 18, fontWeight: FontWeight.bold), 
+                              decoration: const InputDecoration(labelText: 'موجودی اولیه انبار', border: InputBorder.none, contentPadding: EdgeInsets.zero)
+                            )
+                          ),
+                        ]),
                       ],
-                      Row(children: [
-                        Icon(isEdit ? Icons.add_box : Icons.inventory, color: AppTheme.gold, size: 24),
-                        const SizedBox(width: 12),
-                        Expanded(child: TextField(
-                          controller: isEdit ? addStockController : qtyController,
-                          keyboardType: TextInputType.number, 
-                          style: const TextStyle(color: AppTheme.textWhite, fontSize: 18, fontWeight: FontWeight.bold), 
-                          decoration: InputDecoration(labelText: isEdit ? 'مقدار افزودنی به انبار' : 'موجودی اولیه انبار', border: InputBorder.none, contentPadding: EdgeInsets.zero)
-                        )),
-                      ]),
                     ]),
                   ),
                 ]),
@@ -164,19 +185,32 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
                     int finalStock;
                     if (isEdit) {
-                      final addAmount = int.tryParse(toEnglishDigits(addStockController.text)) ?? 0;
+                      // در حالت ویرایش: موجودی فعلی + مقدار افزودنی
+                      final addAmount = int.tryParse(toEnglishDigits(addStockController.text.replaceAll(',', ''))) ?? 0;
                       finalStock = currentStock + addAmount;
                     } else {
-                      finalStock = int.tryParse(toEnglishDigits(qtyController.text)) ?? 0;
+                      // در حالت ثبت جدید: همان مقدار وارد شده به عنوان موجودی اولیه
+                      finalStock = int.tryParse(toEnglishDigits(qtyController.text.replaceAll(',', ''))) ?? 0;
                     }
 
                     final prodData = {
-                      'name': nameController.text.trim(), 'category': category, 'brand': brandController.text.trim(), 
-                      'viscosity': viscosity, 'volume': '${qtyController.text.trim()} $unit', 
-                      'cost_price': cost, 'sell_price': sell, 'stock_quantity': finalStock
+                      'name': nameController.text.trim(), 
+                      'category': category, 
+                      'brand': brandController.text.trim(), 
+                      'viscosity': viscosity, 
+                      'volume': '${toEnglishDigits(qtyController.text.replaceAll(',', ''))} $unit', 
+                      'cost_price': cost, 
+                      'sell_price': sell, 
+                      'stock_quantity': finalStock,
+                      // اصلاح: ذخیره تاریخ شمسی
+                      'created_at': '${Jalali.now().year}/${Jalali.now().month.toString().padLeft(2, '0')}/${Jalali.now().day.toString().padLeft(2, '0')}',
                     };
-                    if (isEdit) { await DatabaseHelper.instance.updateProduct(prod!['id'], prodData); } 
-                    else { await DatabaseHelper.instance.insertProduct(prodData); }
+                    
+                    if (isEdit) { 
+                      await DatabaseHelper.instance.updateProduct(prod!['id'], prodData); 
+                    } else { 
+                      await DatabaseHelper.instance.insertProduct(prodData); 
+                    }
                     Navigator.pop(ctx);
                     _loadProducts();
                   },
