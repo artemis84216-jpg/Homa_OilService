@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:persian_datetime_picker/persian_datetime_picker.dart';
 import 'database_helper.dart';
 import 'license_manager.dart';
 import 'app_utils.dart';
@@ -27,6 +29,15 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
       _employees = data;
       _isLoading = false;
     });
+  }
+
+  // تابع کمکی برای اضافه کردن کاما به اعداد (بدون پسوند تومان)
+  String _formatNumberWithCommas(num? number) {
+    if (number == null) return '0';
+    return number.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
   }
 
   Future<void> _showEmployeeDialog({Map<String, dynamic>? emp}) async {
@@ -60,8 +71,11 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
     final nameController = TextEditingController(text: emp?['name']?.toString() ?? '');
     final phoneController = TextEditingController(text: emp?['phone']?.toString() ?? '');
     final passwordController = TextEditingController(text: emp?['password']?.toString() ?? '');
+    
+    // اصلاح: نمایش حقوق با کاما در حالت ویرایش
+    final salaryController = TextEditingController(text: _formatNumberWithCommas(emp?['base_salary']));
     final commissionController = TextEditingController(text: (emp?['commission_rate'] ?? 0).toString());
-    final salaryController = TextEditingController(text: (emp?['base_salary'] ?? 0).toString());
+    
     String role = emp?['role']?.toString() ?? 'technician';
     String status = emp?['status']?.toString() ?? 'active';
     bool _obscurePassword = true;
@@ -107,11 +121,19 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                   onChanged: (v) => setStateDialog(() => role = v!)
                 ),
                 const SizedBox(height: 12),
-                // حل مورد ۲: حذف CommaSeparatorFormatter از پورسانت و حقوق
                 Row(children: [
                   Expanded(child: TextField(controller: commissionController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'درصد کمیسیون', prefixIcon: Icon(Icons.percent, color: AppTheme.gold)))),
                   const SizedBox(width: 8),
-                  Expanded(child: TextField(controller: salaryController, keyboardType: TextInputType.number, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'حقوق پایه', prefixIcon: Icon(Icons.attach_money, color: AppTheme.gold)))),
+                  // اصلاح: اضافه کردن CommaSeparatorFormatter به فیلد حقوق
+                  Expanded(
+                    child: TextField(
+                      controller: salaryController, 
+                      keyboardType: TextInputType.number, 
+                      inputFormatters: [CommaSeparatorFormatter()], // <-- این خط باعث جداسازی ۳ رقمی حین تایپ می‌شود
+                      style: const TextStyle(color: AppTheme.textWhite), 
+                      decoration: const InputDecoration(labelText: 'حقوق پایه (تومان)', prefixIcon: Icon(Icons.attach_money, color: AppTheme.gold))
+                    )
+                  ),
                 ]),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -133,15 +155,22 @@ class _EmployeesScreenState extends State<EmployeesScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نام و رمز عبور الزامی است'), backgroundColor: Colors.red));
                     return;
                   }
+                  
+                  // اصلاح: حذف کاما قبل از تبدیل به عدد
+                  final cleanSalary = toEnglishDigits(salaryController.text.replaceAll(',', ''));
+                  
                   final empData = {
                     'name': nameController.text.trim(), 
                     'phone': phoneController.text.trim(), 
                     'password': passwordController.text.trim(),
                     'role': role, 
                     'commission_rate': double.tryParse(commissionController.text) ?? 0.0,
-                    'base_salary': double.tryParse(salaryController.text) ?? 0.0, 
-                    'status': status
+                    'base_salary': double.tryParse(cleanSalary) ?? 0.0, 
+                    'status': status,
+                    // اصلاح: ذخیره تاریخ شمسی
+                    'created_at': '${Jalali.now().year}/${Jalali.now().month.toString().padLeft(2, '0')}/${Jalali.now().day.toString().padLeft(2, '0')}',
                   };
+                  
                   if (isEdit) { 
                     await DatabaseHelper.instance.updateEmployee(emp!['id'], empData); 
                   } else { 
