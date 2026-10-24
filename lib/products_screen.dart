@@ -426,10 +426,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         itemBuilder: (context, index) {
                           final p = _filteredProducts[index];
                           final isLowStock = (p['stock_quantity'] ?? 0) <= (p['min_stock'] ?? 5);
-                          final brand = (p['brand'] ?? '').toString();
-                          final viscosity = (p['viscosity'] ?? '').toString();
-                          final volume = (p['volume'] ?? '').toString();
-                          final hasBrandOrViscosity = brand.isNotEmpty || viscosity.isNotEmpty;
+                          final brand = (p['brand'] ?? '').toString().trim();
+                          final viscosity = (p['viscosity'] ?? '').toString().trim();
+                          final volume = (p['volume'] ?? '').toString().trim();
                           
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12), 
@@ -439,13 +438,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (hasBrandOrViscosity)
-                                    Directionality(
-                                      textDirection: TextDirection.ltr,
-                                      child: Text(
-                                        '$brand $viscosity'.trim(),
-                                        style: const TextStyle(color: AppTheme.textWhite, fontSize: 13),
-                                        textAlign: TextAlign.right,
+                                  if (brand.isNotEmpty || viscosity.isNotEmpty)
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Directionality(
+                                        textDirection: TextDirection.ltr,
+                                        child: Text(
+                                          '${brand.isNotEmpty ? brand : ""}${brand.isNotEmpty && viscosity.isNotEmpty ? " - " : ""}${viscosity}',
+                                          style: const TextStyle(color: AppTheme.textYellow, fontSize: 13, fontWeight: FontWeight.bold),
+                                        ),
                                       ),
                                     ),
                                   if (volume.isNotEmpty)
