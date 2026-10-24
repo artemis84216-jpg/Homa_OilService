@@ -432,11 +432,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               leading: CircleAvatar(backgroundColor: isLowStock ? Colors.red.withOpacity(0.2) : AppTheme.gold.withOpacity(0.2), child: Icon(isLowStock ? Icons.warning : Icons.inventory_2, color: isLowStock ? Colors.red : AppTheme.gold)),
                               title: Text(p['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold)),
                               // اصلاح: حذف برند و گرانروی از نمایش برای جلوگیری از به‌هم‌ریختگی متن لاتین و فارسی
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if ((p['volume'] ?? '').toString().isNotEmpty)
-                                    Text('حجم/بسته: ${p['volume']}', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
+                             subtitle: Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    if ((p['brand'] ?? '').toString().isNotEmpty || (p['viscosity'] ?? '').toString().isNotEmpty)
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Text(
+          '${p['brand'] ?? ''} ${p['viscosity'] ?? ''}'.trim(),
+          style: const TextStyle(color: AppTheme.textWhite, fontSize: 13),
+          textAlign: TextAlign.right,
+        ),
+      ),
+    if ((p['volume'] ?? '').toString().isNotEmpty)
+      Text('حجم: ${p['volume']}', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
+    Text('موجودی: ${formatNumber(p['stock_quantity'] ?? 0)} | فروش: ${formatPrice(p['sell_price'])} تومان', style: TextStyle(color: isLowStock ? Colors.red : AppTheme.textGrey, fontSize: 12)),
+  ],
+),
                                   Text('موجودی: ${formatNumber(p['stock_quantity'] ?? 0)} | فروش: ${formatPrice(p['sell_price'])} تومان', style: TextStyle(color: isLowStock ? Colors.red : AppTheme.textGrey, fontSize: 12)),
                                 ],
                               ),
