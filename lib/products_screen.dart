@@ -426,29 +426,30 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         itemBuilder: (context, index) {
                           final p = _filteredProducts[index];
                           final isLowStock = (p['stock_quantity'] ?? 0) <= (p['min_stock'] ?? 5);
+                          final brand = (p['brand'] ?? '').toString();
+                          final viscosity = (p['viscosity'] ?? '').toString();
+                          final volume = (p['volume'] ?? '').toString();
+                          final hasBrandOrViscosity = brand.isNotEmpty || viscosity.isNotEmpty;
+                          
                           return Card(
                             margin: const EdgeInsets.only(bottom: 12), 
                             child: ListTile(
                               leading: CircleAvatar(backgroundColor: isLowStock ? Colors.red.withOpacity(0.2) : AppTheme.gold.withOpacity(0.2), child: Icon(isLowStock ? Icons.warning : Icons.inventory_2, color: isLowStock ? Colors.red : AppTheme.gold)),
                               title: Text(p['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold)),
-                              // اصلاح: حذف برند و گرانروی از نمایش برای جلوگیری از به‌هم‌ریختگی متن لاتین و فارسی
-                             subtitle: Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    if ((p['brand'] ?? '').toString().isNotEmpty || (p['viscosity'] ?? '').toString().isNotEmpty)
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: Text(
-          '${p['brand'] ?? ''} ${p['viscosity'] ?? ''}'.trim(),
-          style: const TextStyle(color: AppTheme.textWhite, fontSize: 13),
-          textAlign: TextAlign.right,
-        ),
-      ),
-    if ((p['volume'] ?? '').toString().isNotEmpty)
-      Text('حجم: ${p['volume']}', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
-    Text('موجودی: ${formatNumber(p['stock_quantity'] ?? 0)} | فروش: ${formatPrice(p['sell_price'])} تومان', style: TextStyle(color: isLowStock ? Colors.red : AppTheme.textGrey, fontSize: 12)),
-  ],
-),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (hasBrandOrViscosity)
+                                    Directionality(
+                                      textDirection: TextDirection.ltr,
+                                      child: Text(
+                                        '$brand $viscosity'.trim(),
+                                        style: const TextStyle(color: AppTheme.textWhite, fontSize: 13),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                    ),
+                                  if (volume.isNotEmpty)
+                                    Text('حجم: $volume', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
                                   Text('موجودی: ${formatNumber(p['stock_quantity'] ?? 0)} | فروش: ${formatPrice(p['sell_price'])} تومان', style: TextStyle(color: isLowStock ? Colors.red : AppTheme.textGrey, fontSize: 12)),
                                 ],
                               ),
