@@ -47,6 +47,53 @@ class _ProductsScreenState extends State<ProductsScreen> {
     });
   }
 
+  // نمایش تاریخچه افزایش موجودی
+  Future<void> _showInventoryHistory(int productId, String productName) async {
+    final history = await DatabaseHelper.instance.getInventoryHistoryByProduct(productId);
+    
+    if (history.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تاریخچه‌ای برای این کالا ثبت نشده'), backgroundColor: AppTheme.gold),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          backgroundColor: AppTheme.cardBlack,
+          title: Text('تاریخچه موجودی: $productName', style: const TextStyle(color: AppTheme.gold)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: history.length,
+              itemBuilder: (context, index) {
+                final h = history[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: const Icon(Icons.history, color: AppTheme.gold),
+                    title: Text('تاریخ: ${h['date']}', style: const TextStyle(color: AppTheme.textWhite)),
+                    subtitle: Text(
+                      'موجودی قبلی: ${formatNumber(h['previous_stock'])} → افزودن: ${formatNumber(h['quantity_added'])} → موجودی جدید: ${formatNumber(h['new_stock'])}',
+                      style: const TextStyle(color: AppTheme.textGrey, fontSize: 12),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('بستن', style: TextStyle(color: AppTheme.gold))),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showProductDialog({Map<String, dynamic>? prod}) async {
     final isEdit = prod != null;
     final nameController = TextEditingController(text: prod?['name']?.toString() ?? '');
@@ -61,7 +108,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final sellController = TextEditingController(text: (prod?['sell_price'] ?? 0).toInt().toString());
     
     final currentStock = prod?['stock_quantity'] ?? 0;
-    // کنترلر جداگانه برای حالت ویرایش (فقط مقدار افزودنی)
     final addStockController = TextEditingController(text: '0'); 
     
     String category = prod?['category']?.toString() ?? _categories.first;
@@ -123,7 +169,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   TextField(controller: sellController, keyboardType: TextInputType.number, inputFormatters: [CommaSeparatorFormatter()], style: const TextStyle(color: AppTheme.textWhite, fontSize: 16), decoration: const InputDecoration(labelText: 'قیمت فروش (تومان)', prefixIcon: Icon(Icons.attach_money, color: AppTheme.gold), contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12))),
                   const SizedBox(height: 12),
                   
-                  // منطق هوشمند و شفاف موجودی انبار
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(color: AppTheme.gold.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.gold)),
@@ -150,7 +195,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: TextField(
-                              controller: qtyController, // در حالت جدید، همین فیلد به عنوان موجودی اولیه استفاده می‌شود
+                              controller: qtyController,
                               keyboardType: TextInputType.number,
                               inputFormatters: [CommaSeparatorFormatter()],
                               style: const TextStyle(color: AppTheme.textWhite, fontSize: 18, fontWeight: FontWeight.bold), 
@@ -168,13 +213,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: AppTheme.gold, foregroundColor: Colors.black),
                   onPressed: () async {
-                    if (nameController.text.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نام کالا الزامی است'), backgroundColor: Colors.red)); return; }
+                    if (nameController.text.isEmpty) { 
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نام کالا الزامی است'), backgroundColor: Colors.red)); 
+                      return; 
+                    }
+                    
                     if (_isCustomCategory && _customCategoryController.text.trim().isNotEmpty) {
                       if (!_categories.contains(_customCategoryController.text.trim())) {
                         _categories.add(_customCategoryController.text.trim());
                         category = _customCategoryController.text.trim();
                       }
                     }
+                    
                     final cost = int.tryParse(toEnglishDigits(costController.text.replaceAll(',', ''))) ?? 0;
                     final sell = int.tryParse(toEnglishDigits(sellController.text.replaceAll(',', ''))) ?? 0;
                     
@@ -183,14 +233,102 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       if (confirm != true) return;
                     }
 
+                    // تاریخ شمسی
+                    final jalaliNow = Jalali.now();
+                    final dateStr = '${jalaliNow.year}/${jalaliNow.month.toString().padLeft(2, '0')}/${jalaliNow.day.toString().padLeft(2, '0')}';
+
+                    if (!isEdit) {
+                      // بررسی تکراری بودن کالا
+                      final existingProduct = await DatabaseHelper.instance.findExistingProduct(
+                        nameController.text.trim(),
+                        brandController.text.trim(),
+                        viscosity,
+                        unit,
+                      );
+
+                      if (existingProduct != null) {
+                        // کالا تکراری است → افزودن به موجودی
+                        final addAmount = int.tryParse(toEnglishDigits(qtyController.text.replaceAll(',', ''))) ?? 0;
+                        final previousStock = existingProduct['stock_quantity'] ?? 0;
+                        final newStock = previousStock + addAmount;
+
+                        // به‌روزرسانی موجودی
+                        await DatabaseHelper.instance.updateProduct(existingProduct['id'], {
+                          'stock_quantity': newStock,
+                          'cost_price': cost,
+                          'sell_price': sell,
+                        });
+
+                        // ثبت در تاریخچه
+                        await DatabaseHelper.instance.insertInventoryHistory({
+                          'product_id': existingProduct['id'],
+                          'quantity_added': addAmount,
+                          'previous_stock': previousStock,
+                          'new_stock': newStock,
+                          'date': dateStr,
+                          'notes': 'افزایش موجودی',
+                        });
+
+                        Navigator.pop(ctx);
+                        _loadProducts();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('✓ این کالا قبلاً ثبت شده بود. موجودی از ${formatNumber(previousStock)} به ${formatNumber(newStock)} افزایش یافت.'),
+                            backgroundColor: Colors.green,
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                        return;
+                      }
+                    }
+
+                    // کالا جدید یا ویرایش
                     int finalStock;
                     if (isEdit) {
-                      // در حالت ویرایش: موجودی فعلی + مقدار افزودنی
                       final addAmount = int.tryParse(toEnglishDigits(addStockController.text.replaceAll(',', ''))) ?? 0;
                       finalStock = currentStock + addAmount;
+                      
+                      // ثبت در تاریخچه
+                      if (addAmount > 0) {
+                        await DatabaseHelper.instance.insertInventoryHistory({
+                          'product_id': prod!['id'],
+                          'quantity_added': addAmount,
+                          'previous_stock': currentStock,
+                          'new_stock': finalStock,
+                          'date': dateStr,
+                          'notes': 'افزایش موجودی',
+                        });
+                      }
                     } else {
-                      // در حالت ثبت جدید: همان مقدار وارد شده به عنوان موجودی اولیه
                       finalStock = int.tryParse(toEnglishDigits(qtyController.text.replaceAll(',', ''))) ?? 0;
+                      
+                      // ثبت در تاریخچه برای کالای جدید
+                      if (finalStock > 0) {
+                        final newProductId = await DatabaseHelper.instance.insertProduct({
+                          'name': nameController.text.trim(), 
+                          'category': category, 
+                          'brand': brandController.text.trim(), 
+                          'viscosity': viscosity, 
+                          'volume': '${toEnglishDigits(qtyController.text.replaceAll(',', ''))} $unit', 
+                          'cost_price': cost, 
+                          'sell_price': sell, 
+                          'stock_quantity': finalStock,
+                          'created_at': dateStr,
+                        });
+                        
+                        await DatabaseHelper.instance.insertInventoryHistory({
+                          'product_id': newProductId,
+                          'quantity_added': finalStock,
+                          'previous_stock': 0,
+                          'new_stock': finalStock,
+                          'date': dateStr,
+                          'notes': 'ثبت اولیه',
+                        });
+                        
+                        Navigator.pop(ctx);
+                        _loadProducts();
+                        return;
+                      }
                     }
 
                     final prodData = {
@@ -202,8 +340,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       'cost_price': cost, 
                       'sell_price': sell, 
                       'stock_quantity': finalStock,
-                      // اصلاح: ذخیره تاریخ شمسی
-                      'created_at': '${Jalali.now().year}/${Jalali.now().month.toString().padLeft(2, '0')}/${Jalali.now().day.toString().padLeft(2, '0')}',
+                      'created_at': dateStr,
                     };
                     
                     if (isEdit) { 
@@ -305,6 +442,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               title: Text(p['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold)),
                               subtitle: Text('${p['brand'] ?? ''} ${p['viscosity'] ?? ''} ${p['volume'] ?? ''}\nموجودی: ${formatNumber(p['stock_quantity'] ?? 0)} | فروش: ${formatPrice(p['sell_price'])} تومان', style: TextStyle(color: isLowStock ? Colors.red : AppTheme.textGrey)),
                               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                                IconButton(icon: const Icon(Icons.history, color: AppTheme.gold), onPressed: () => _showInventoryHistory(p['id'], p['name'] ?? '')),
                                 IconButton(icon: const Icon(Icons.edit, color: AppTheme.gold), onPressed: () => _showProductDialog(prod: p)),
                                 IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteProduct(p['id'])),
                               ]),
