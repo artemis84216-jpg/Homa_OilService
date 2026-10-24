@@ -388,7 +388,7 @@ class _CreateInvoiceScreenState extends State<CreateInvoiceScreen> {
       setState(() => _invoiceItems.add({
             'type': 'product',
             'id': product['id'],
-            'name': '${product['name']} ${product['viscosity'] ?? ''} ${product['volume'] ?? ''}',
+            'name': '${product['name']} ${product['volume'] ?? ''}'.trim(),
             'price': (product['sell_price'] ?? 0).toDouble(),
             'quantity': 1,
           }));
