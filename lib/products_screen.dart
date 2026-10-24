@@ -144,7 +144,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ],
                   const SizedBox(height: 12),
                   Row(children: [
-                    Expanded(child: TextField(controller: brandController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'برند', prefixIcon: Icon(Icons.business, color: AppTheme.gold)))),
+  Expanded(
+    child: isOil
+        ? DropdownButtonFormField<String>(
+            value: viscosity.isEmpty ? null : viscosity, dropdownColor: AppTheme.cardBlack, style: const TextStyle(color: AppTheme.textWhite),
+            decoration: const InputDecoration(labelText: 'گرانروی', prefixIcon: Icon(Icons.water_drop, color: AppTheme.gold)),
+            items: oilViscosities.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+            onChanged: (v) => setStateDialog(() => viscosity = v ?? ''),
+          )
+        : TextField(controller: TextEditingController(text: viscosity), style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'گرانروی (اختیاری)', prefixIcon: Icon(Icons.water_drop_outlined, color: AppTheme.textGrey)), onChanged: (v) => viscosity = v),
+  ),
+  const SizedBox(width: 8),
+  Expanded(child: TextField(controller: brandController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'برند', prefixIcon: Icon(Icons.business, color: AppTheme.gold)))),
+]),
                     const SizedBox(width: 8),
                     Expanded(
                       child: isOil
