@@ -142,7 +142,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ),
                   ],
                   const SizedBox(height: 12),
-                  // اصلاح: جابجایی ترتیب برای جلوگیری از قاطی شدن متن فارسی و انگلیسی
                   Row(children: [
                     Expanded(
                       child: isOil
@@ -432,16 +431,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             child: ListTile(
                               leading: CircleAvatar(backgroundColor: isLowStock ? Colors.red.withOpacity(0.2) : AppTheme.gold.withOpacity(0.2), child: Icon(isLowStock ? Icons.warning : Icons.inventory_2, color: isLowStock ? Colors.red : AppTheme.gold)),
                               title: Text(p['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold)),
-                              // اصلاح: استفاده از Column برای جلوگیری از قاطی شدن متن فارسی و انگلیسی
+                              // اصلاح: حذف برند و گرانروی از نمایش برای جلوگیری از به‌هم‌ریختگی متن لاتین و فارسی
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if ((p['brand'] ?? '').toString().isNotEmpty)
-                                    Text('برند: ${p['brand']}', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
-                                  if ((p['viscosity'] ?? '').toString().isNotEmpty)
-                                    Text('گرانروی: ${p['viscosity']}', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
                                   if ((p['volume'] ?? '').toString().isNotEmpty)
-                                    Text('حجم: ${p['volume']}', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
+                                    Text('حجم/بسته: ${p['volume']}', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
                                   Text('موجودی: ${formatNumber(p['stock_quantity'] ?? 0)} | فروش: ${formatPrice(p['sell_price'])} تومان', style: TextStyle(color: isLowStock ? Colors.red : AppTheme.textGrey, fontSize: 12)),
                                 ],
                               ),
