@@ -47,7 +47,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
     });
   }
 
-  // نمایش تاریخچه افزایش موجودی
   Future<void> _showInventoryHistory(int productId, String productName) async {
     final history = await DatabaseHelper.instance.getInventoryHistoryByProduct(productId);
     
@@ -143,21 +142,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ),
                   ],
                   const SizedBox(height: 12),
+                  // اصلاح: جابجایی ترتیب برای جلوگیری از قاطی شدن متن فارسی و انگلیسی
                   Row(children: [
-  Expanded(
-    child: isOil
-        ? DropdownButtonFormField<String>(
-            value: viscosity.isEmpty ? null : viscosity, dropdownColor: AppTheme.cardBlack, style: const TextStyle(color: AppTheme.textWhite),
-            decoration: const InputDecoration(labelText: 'گرانروی', prefixIcon: Icon(Icons.water_drop, color: AppTheme.gold)),
-            items: oilViscosities.map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-            onChanged: (v) => setStateDialog(() => viscosity = v ?? ''),
-          )
-        : TextField(controller: TextEditingController(text: viscosity), style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'گرانروی (اختیاری)', prefixIcon: Icon(Icons.water_drop_outlined, color: AppTheme.textGrey)), onChanged: (v) => viscosity = v),
-  ),
-  const SizedBox(width: 8),
-  Expanded(child: TextField(controller: brandController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'برند', prefixIcon: Icon(Icons.business, color: AppTheme.gold)))),
-]),
-                    const SizedBox(width: 8),
                     Expanded(
                       child: isOil
                           ? DropdownButtonFormField<String>(
@@ -168,6 +154,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             )
                           : TextField(controller: TextEditingController(text: viscosity), style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'گرانروی (اختیاری)', prefixIcon: Icon(Icons.water_drop_outlined, color: AppTheme.textGrey)), onChanged: (v) => viscosity = v),
                     ),
+                    const SizedBox(width: 8),
+                    Expanded(child: TextField(controller: brandController, style: const TextStyle(color: AppTheme.textWhite), decoration: const InputDecoration(labelText: 'برند', prefixIcon: Icon(Icons.business, color: AppTheme.gold)))),
                   ]),
                   const SizedBox(height: 12),
                   Row(children: [
@@ -245,12 +233,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       if (confirm != true) return;
                     }
 
-                    // تاریخ شمسی
                     final jalaliNow = Jalali.now();
                     final dateStr = '${jalaliNow.year}/${jalaliNow.month.toString().padLeft(2, '0')}/${jalaliNow.day.toString().padLeft(2, '0')}';
 
                     if (!isEdit) {
-                      // بررسی تکراری بودن کالا
                       final existingProduct = await DatabaseHelper.instance.findExistingProduct(
                         nameController.text.trim(),
                         brandController.text.trim(),
@@ -259,19 +245,16 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       );
 
                       if (existingProduct != null) {
-                        // کالا تکراری است → افزودن به موجودی
                         final addAmount = int.tryParse(toEnglishDigits(qtyController.text.replaceAll(',', ''))) ?? 0;
                         final previousStock = existingProduct['stock_quantity'] ?? 0;
                         final newStock = previousStock + addAmount;
 
-                        // به‌روزرسانی موجودی
                         await DatabaseHelper.instance.updateProduct(existingProduct['id'], {
                           'stock_quantity': newStock,
                           'cost_price': cost,
                           'sell_price': sell,
                         });
 
-                        // ثبت در تاریخچه
                         await DatabaseHelper.instance.insertInventoryHistory({
                           'product_id': existingProduct['id'],
                           'quantity_added': addAmount,
@@ -294,13 +277,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       }
                     }
 
-                    // کالا جدید یا ویرایش
                     int finalStock;
                     if (isEdit) {
                       final addAmount = int.tryParse(toEnglishDigits(addStockController.text.replaceAll(',', ''))) ?? 0;
                       finalStock = currentStock + addAmount;
                       
-                      // ثبت در تاریخچه
                       if (addAmount > 0) {
                         await DatabaseHelper.instance.insertInventoryHistory({
                           'product_id': prod!['id'],
@@ -314,7 +295,6 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     } else {
                       finalStock = int.tryParse(toEnglishDigits(qtyController.text.replaceAll(',', ''))) ?? 0;
                       
-                      // ثبت در تاریخچه برای کالای جدید
                       if (finalStock > 0) {
                         final newProductId = await DatabaseHelper.instance.insertProduct({
                           'name': nameController.text.trim(), 
@@ -452,18 +432,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             child: ListTile(
                               leading: CircleAvatar(backgroundColor: isLowStock ? Colors.red.withOpacity(0.2) : AppTheme.gold.withOpacity(0.2), child: Icon(isLowStock ? Icons.warning : Icons.inventory_2, color: isLowStock ? Colors.red : AppTheme.gold)),
                               title: Text(p['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold)),
+                              // اصلاح: استفاده از Column برای جلوگیری از قاطی شدن متن فارسی و انگلیسی
                               subtitle: Column(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    if ((p['brand'] ?? '').toString().isNotEmpty)
-      Text('برند: ${p['brand']}', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
-    if ((p['viscosity'] ?? '').toString().isNotEmpty)
-      Text('گرانروی: ${p['viscosity']}', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
-    if ((p['volume'] ?? '').toString().isNotEmpty)
-      Text('حجم: ${p['volume']}', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
-    Text('موجودی: ${formatNumber(p['stock_quantity'] ?? 0)} | فروش: ${formatPrice(p['sell_price'])} تومان', style: TextStyle(color: isLowStock ? Colors.red : AppTheme.textGrey, fontSize: 12)),
-  ],
-),
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if ((p['brand'] ?? '').toString().isNotEmpty)
+                                    Text('برند: ${p['brand']}', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
+                                  if ((p['viscosity'] ?? '').toString().isNotEmpty)
+                                    Text('گرانروی: ${p['viscosity']}', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
+                                  if ((p['volume'] ?? '').toString().isNotEmpty)
+                                    Text('حجم: ${p['volume']}', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
+                                  Text('موجودی: ${formatNumber(p['stock_quantity'] ?? 0)} | فروش: ${formatPrice(p['sell_price'])} تومان', style: TextStyle(color: isLowStock ? Colors.red : AppTheme.textGrey, fontSize: 12)),
+                                ],
+                              ),
                               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                                 IconButton(icon: const Icon(Icons.history, color: AppTheme.gold), onPressed: () => _showInventoryHistory(p['id'], p['name'] ?? '')),
                                 IconButton(icon: const Icon(Icons.edit, color: AppTheme.gold), onPressed: () => _showProductDialog(prod: p)),
