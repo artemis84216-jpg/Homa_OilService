@@ -293,14 +293,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               leading: CircleAvatar(backgroundColor: isLowStock ? Colors.red.withOpacity(0.2) : AppTheme.gold.withOpacity(0.2), child: Icon(isLowStock ? Icons.warning : Icons.inventory_2, color: isLowStock ? Colors.red : AppTheme.gold)),
                               title: Text(p['name'] ?? '', style: const TextStyle(color: AppTheme.textWhite, fontWeight: FontWeight.bold)),
                               subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (brand.isNotEmpty) Text('برند: $brand', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
-                                  if (viscosity.isNotEmpty) Text('گرانروی: $viscosity', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
-                                  if (qty > 0) Text('مقدار: ${qty.toString()} $unit', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
-                                  Text('موجودی: ${formatNumber(p['stock_quantity'] ?? 0)} | فروش: ${formatPrice(p['sell_price'])} تومان', style: TextStyle(color: isLowStock ? Colors.red : AppTheme.textGrey, fontSize: 12)),
-                                ],
-                              ),
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    if (brand.isNotEmpty) Text('برند: $brand', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
+    if (viscosity.isNotEmpty) Text(viscosity, style: const TextStyle(color: AppTheme.textYellow, fontSize: 13, fontWeight: FontWeight.bold)),
+    if (qty > 0) Text('مقدار: ${qty.toString()} $unit', style: const TextStyle(color: AppTheme.textWhite, fontSize: 13)),
+    Text('موجودی: ${formatStock(p['stock_quantity'])} | فروش: ${formatPrice(p['sell_price'])} تومان', style: TextStyle(color: isLowStock ? Colors.red : AppTheme.textGrey, fontSize: 12)),
+  ],
+),
                               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                                 IconButton(icon: const Icon(Icons.history, color: AppTheme.gold), onPressed: () => _showInventoryHistory(p['id'], p['name'] ?? '')),
                                 IconButton(icon: const Icon(Icons.edit, color: AppTheme.gold), onPressed: () => _showProductDialog(prod: p)),
