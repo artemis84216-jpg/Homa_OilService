@@ -80,7 +80,13 @@ Future<String> generateDailyInvoiceNumber() async {
   
   return 'HOMA-$dateStr-$seqStr';
 }
+// تابع کمکی برای نمایش موجودی (اعشاری یا صحیح)
+String formatStock(dynamic stock) {
+  final s = (stock ?? 0).toDouble();
+  if (s == s.toInt()) return toPersianDigits(s.toInt().toString());
+  return toPersianDigits(s.toStringAsFixed(2));
+}
 
 const List<String> productCategories = ['روغن موتور', 'روغن گیربکس', 'فیلتر روغن', 'فیلتر هوا', 'فیلتر کابین', 'فیلتر سوخت', 'مایع خنک‌کننده', 'مایع شستشو', 'روغن ترمز', 'شمع موتور', 'تسمه', 'سایر'];
-const List<String> oilViscosities = ['5W-30', '5W-40', '10W-30', '10W-40', '10W-50', '15W-40', '20W-50', '0W-20', '0W-30', '20W-40'];
+const List<String> oilViscosities = ['5W-30', '5W-40', '10W-30', '10W-40', '10W-50', '15W-40', '20W-50', '0W-20', '0W-30', '20W-40', 'سایر'];
 const List<String> oilBrands = ['بهران', 'پارس', 'ایرانول', 'سپاهان', 'شل', 'موبیل', 'توتال', 'کاسترول', 'والولاین', 'لیکومولی', 'سایر'];
