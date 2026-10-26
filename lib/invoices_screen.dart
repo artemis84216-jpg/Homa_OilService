@@ -173,10 +173,10 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                                   ]),
                                   const SizedBox(height: 6),
                                   Row(children: [
-                                    const Icon(Icons.person, size: 16, color: AppTheme.textGrey),
-                                    const SizedBox(width: 4),
-                                    Text('مشتری: ${inv['customer_name'] ?? 'نامشخص'}', style: const TextStyle(color: AppTheme.textGrey)),
-                                  ]),
+  const Icon(Icons.person, size: 16, color: AppTheme.textGrey),
+  const SizedBox(width: 4),
+  Expanded(child: Text('مشتری: ${inv['customer_name'] ?? 'نامشخص'} | ${inv['customer_phone'] ?? ''}', style: const TextStyle(color: AppTheme.textGrey))),
+]),
                                   const Divider(color: AppTheme.gold, height: 20),
                                   Row(children: [
                                     const Icon(Icons.attach_money, size: 20, color: AppTheme.gold),
